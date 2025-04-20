@@ -1,0 +1,79 @@
+﻿@page "/GeolocationExample"
+@implements IDisposable
+
+<h3>GeoLocation</h3>
+
+<div>
+    Status: @status
+</div>
+<div>
+    Location: @location
+</div>
+<div>
+    <button disabled="@(!supported)" @onclick="GetCurrentPosition">Get Current Position</button>
+</div>
+<div>
+    <button disabled="@(!supported || watching)" @onclick="StartWatching">Start Location Updates</button>
+    <button disabled="@(!watching)" @onclick="StopWatching">Stop Location Updates</button>
+</div>
+
+@code {
+    [Inject]
+    BlazorJSRuntime JS { get; set; } = default!;
+
+    bool watching => watchHandle?.Watching ?? false;
+    string status = "";
+    string location = "";
+    bool supported = false;
+    Geolocation? geolocation = null;
+    GeolocationPosition? position = null;
+    GeolocationWatchHandle? watchHandle = null;
+    // optional config
+    GeolocationOptions geolocationOptions = new GeolocationOptions
+    {
+        //EnableHighAccuracy = true,
+    };
+    void StartWatching()
+    {
+        if (geolocation == null || watchHandle != null) return;
+        watchHandle = geolocation.WatchPosition(OnPositionUpdate, OnPositionError, geolocationOptions);
+    }
+    void StopWatching()
+    {
+        watchHandle?.Dispose();
+        watchHandle = null;
+    }
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            using var navigator = JS.Get<Navigator>("navigator");
+            geolocation = navigator.Geolocation;
+            supported = geolocation != null;
+            status = supported ? "Geolocation API is supported" : "Geolocation API is not supported";
+            StateHasChanged();
+        }
+    }
+    void OnPositionUpdate(GeolocationPosition pos)
+    {
+        position = pos;
+        status = "Location updated: " + DateTime.Now;
+        location = $"Latitude: {position?.Coords?.Latitude} Longitude: {position?.Coords?.Longitude}";
+        StateHasChanged();
+    }
+    void OnPositionError(GeolocationPositionError error)
+    {
+        status = "Location update failed: " + DateTime.Now + " " + error.Message;
+        StateHasChanged();
+    }
+    void GetCurrentPosition()
+    {
+        if (geolocation == null) return;
+        geolocation.GetCurrentPosition(OnPositionUpdate, OnPositionError, geolocationOptions);
+    }
+    public void Dispose()
+    {
+        watchHandle?.Dispose();
+        geolocation?.Dispose();
+    }
+}
