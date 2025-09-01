@@ -490,6 +490,48 @@
         return JS.InstanceId;
     }
 
+    /// <summary>
+    /// This method tests Exception handling of web worker calls.<br/>
+    /// As of version 2.15.0, simple Exception serialization is used to pass exceptions back to the caller in another context.</br>
+    /// Some exception types may not be serializable and will be deserialized to a basic Exception.<br/>
+    /// Regardless of serialization support, the created exception.Message will contain the Exception.ToString() return value.
+    /// </summary>
+    /// <returns></returns>
+    /// <exception cref="Exception"></exception>
+    [TestMethod]
+    public async Task WebWorkerExceptionTest()
+    {
+        if (!WebWorkerService.WebWorkerSupported)
+        {
+            throw new Exception("Worker not supported by browser. Expected failure.");
+        }
+        using var worker = await WebWorkerService.GetWebWorker();
+        try
+        {
+            // call method that throws a DivideByZeroException exception in the web worker context
+            // the exception will be caught by the worker and rethrown to the caller
+            var willNotGetResult = await worker!.Run(() => DivideByZero());
+        }
+        catch (DivideByZeroException ex)
+        {
+            Console.WriteLine($"WebWorkerExceptionTest expected exception message: {ex.ToString()}");
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"The DivideByZeroException exception should have been received. {ex.GetType().FullName}");
+        }
+    }
+
+    /// <summary>
+    /// This method will throw an exception in the web worker context, which gets passed back to the calling window context as.<br/>
+    /// </summary>
+    /// <returns></returns>
+    /// <exception cref="DivideByZeroException"></exception>
+    static async Task<double> DivideByZero()
+    {
+        throw new DivideByZeroException();  // this will be caught by the worker and rethrown to the caller
+    }
+
     [TestMethod]
     public async Task WebWorkerAppSettingsReadTest()
     {
@@ -654,12 +696,12 @@
         using var subtle = crypto.Subtle;
         var keyPair = await subtle.GenerateKey<CryptoKeyPair>(
             new RsaHashedKeyGenParams
-                {
-                    Name = "RSA-PSS",
-                    ModulusLength = 4096,
-                    PublicExponent = new byte[] { 1, 0, 1 },
-                    Hash = "SHA-256"
-                },
+            {
+                Name = "RSA-PSS",
+                ModulusLength = 4096,
+                PublicExponent = new byte[] { 1, 0, 1 },
+                Hash = "SHA-256"
+            },
             true,
             new string[] { "sign", "verify" }
         );
@@ -713,12 +755,12 @@
         using var subtle = crypto.Subtle;
         var keyPair = await subtle.GenerateKey<CryptoKeyPair>(
             new RsaHashedKeyGenParams
-                {
-                    Name = "RSA-OAEP",
-                    ModulusLength = 4096,
-                    PublicExponent = new byte[] { 1, 0, 1 },
-                    Hash = "SHA-256"
-                },
+            {
+                Name = "RSA-OAEP",
+                ModulusLength = 4096,
+                PublicExponent = new byte[] { 1, 0, 1 },
+                Hash = "SHA-256"
+            },
             true,
             new string[] { "encrypt", "decrypt" }
         );

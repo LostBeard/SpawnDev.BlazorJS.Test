@@ -161,7 +161,7 @@ namespace SpawnDev.BlazorJS.Test.UnitTests
             var strPart1 = fullString.Substring(0, fullString.IndexOf(" "));
             var strPart2 = fullString.Substring(fullString.IndexOf(" "));
             using var blob = new Blob(new string[] { strPart2 });
-            using var file = new File(new Union<ArrayBuffer, TypedArray, DataView, Blob, string>[] { strPart1, blob }, "filename.txt");
+            using var file = new File([strPart1, blob], "filename.txt");
             var txt = await file.Text();
             if (txt != fullString) throw new Exception("Unexpected result");
         }

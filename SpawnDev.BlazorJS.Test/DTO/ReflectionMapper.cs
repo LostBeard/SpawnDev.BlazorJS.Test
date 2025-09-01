@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
 
 namespace SpawnDev.BlazorJS.DTO;
 public static class ReflectionMapper
@@ -35,7 +36,7 @@ public static class ReflectionMapper
         }
     }
 
-    public static TResult Map<TSource, TResult>(TSource source, Func<PropertyInfo, bool>? shouldCopyCallback = null) where TResult : class
+    public static TResult Map<TSource, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TResult>(TSource source, Func<PropertyInfo, bool>? shouldCopyCallback = null) where TResult : class
     {
         var typeResult = typeof(TResult);
         var targetItem = (TResult)Activator.CreateInstance(typeResult)!;

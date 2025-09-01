@@ -20,7 +20,7 @@ namespace SpawnDev.BlazorJS.Test.Shared
         ServiceCallDispatcher? worker = null;
         GenerationStat GenerationStat = new GenerationStat();
         [Inject]
-        WebWorkerService WebWorkerService { get; set; }
+        WebWorkerService WebWorkerService { get; set; } = default!;
         [Inject]
         BlazorJSRuntime JS { get; set; }
         [Parameter]

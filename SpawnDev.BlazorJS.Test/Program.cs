@@ -1,14 +1,11 @@
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
-using Microsoft.Extensions.DependencyInjection;
 using Radzen;
 using SpawnDev.BlazorJS;
-using SpawnDev.BlazorJS.Diagnostics;
 using SpawnDev.BlazorJS.JSObjects;
 using SpawnDev.BlazorJS.JsonConverters;
 using SpawnDev.BlazorJS.Test;
 using SpawnDev.BlazorJS.Test.Services;
-using SpawnDev.BlazorJS.Test.Shared;
 using SpawnDev.BlazorJS.Test.UnitTests;
 using SpawnDev.BlazorJS.Toolbox;
 using SpawnDev.BlazorJS.WebWorkers;
@@ -59,15 +56,8 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 #if DEBUG && true
 var host = builder.Build();
 await host.StartBackgroundServices();
-//
-//if (JS.IsWindow)
-//{
-//    //var JS = host.Services.GetRequiredService<BlazorJSRuntime>();
-//    var WebWorkerService = host.Services.GetRequiredService<WebWorkerService>();
-//    var thisScope = JS.GlobalThisTypeName;
-//    var calledScope = await WebWorkerService.TaskPool.Run(() => TestClass.TestIt(null, thisScope));
-//    JS.Log($"This scope: {thisScope}. Calling scope: {calledScope}");
-//}
+
+
 
 await host.BlazorJSRunAsync();
 #else
@@ -75,12 +65,3 @@ await host.BlazorJSRunAsync();
 await builder.Build().BlazorJSRunAsync();
 #endif
 
-static class TestClass
-{
-    public static async Task<string> TestIt([FromServices] BlazorJSRuntime js, string callingScope)
-    {
-        var thisScope = js.GlobalThisTypeName;
-        js.Log($"This scope: {thisScope}. Calling scope: {callingScope}");
-        return thisScope;
-    }
-}

@@ -1,0 +1,460 @@
+﻿@page "/ParallelWorkers"
+@using System.Diagnostics
+@implements IDisposable
+
+<div>
+    <div><canvas @ref=CanvasElRef></canvas></div>
+    <div>
+        <button disabled="@(!CanRun)" @onclick=RunIt>Run</button>
+        <button disabled="@(!CanCancel)" @onclick=StopIt>Stop</button>
+        <label>Thread Count Max: <input type="number" @bind=threadCountMax /></label>
+        <div>Thread Count: @threadCount</div>
+        <div>SharedArrayBuffer Supported: @SharedArrayBuffer.Supported</div>
+        <div>WebWorker Supported: @WebWorkerService.WebWorkerSupported</div>
+        <div>CrossOriginIsolated: @JS.CrossOriginIsolated</div>
+        <dib>@CycleTime</dib>
+    </div>
+</div>
+
+@code {
+
+    string vertexShader = @"
+attribute vec2 a_position;
+attribute vec2 a_texCoord;
+
+uniform vec2 u_resolution;
+
+varying vec2 v_texCoord;
+
+void main() {
+// convert the rectangle from pixels to 0.0 to 1.0
+vec2 zeroToOne = a_position / u_resolution;
+
+// convert from 0->1 to 0->2
+vec2 zeroToTwo = zeroToOne * 2.0;
+
+// convert from 0->2 to -1->+1 (clipspace)
+vec2 clipSpace = zeroToTwo - 1.0;
+
+gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
+
+// pass the texCoord to the fragment shader
+// The GPU will interpolate this value between points.
+v_texCoord = a_texCoord;
+}
+";
+
+    string pixelShader = @"
+precision mediump float;
+
+// our texture
+uniform sampler2D u_image;
+
+// the texCoords passed in from the vertex shader.
+varying vec2 v_texCoord;
+
+void main() {
+gl_FragColor = texture2D(u_image, v_texCoord);
+}
+";
+
+    [Inject]
+    WebWorkerService WebWorkerService { get; set; } = default!;
+
+    [Inject]
+    BlazorJSRuntime JS { get; set; } = default!;
+
+    ElementReference CanvasElRef { get; set; } = default!;
+    Uint8ClampedArray? ImageDataUint8ClampedArray { get; set; }
+    Uint8Array? Uint8Array = null;
+    SharedArrayBuffer? SharedArrayBuffer { get; set; }
+    SharedCancellationTokenSource? SharedCancellationTokenSource { get; set; }
+    HTMLCanvasElement? Canvas { get; set; }
+    CanvasRenderingContext2D? Context { get; set; }
+    WebGLRenderingContext? gl = null;
+    WebGLProgram? p = null;
+    bool UseWebGl = false;
+    int width = 600;
+    int height = 600;
+    int threadCount = 0;
+    int threadCountMax = -1;
+    List<WebWorker?> workers = new List<WebWorker?>();
+    bool Running = false;
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            SharedCancellationTokenSource = new SharedCancellationTokenSource();
+            Canvas = new HTMLCanvasElement(CanvasElRef);
+            Canvas.Width = width;
+            Canvas.Height = height;
+            SharedArrayBuffer = new SharedArrayBuffer(width * height * 4);
+            Uint8Array = new Uint8Array(SharedArrayBuffer);
+            ImageDataUint8ClampedArray = new Uint8ClampedArray(SharedArrayBuffer);
+            if (UseWebGl)
+            {
+                InitWebGL(width, height);
+            }
+            // Initialize the 2D context if WebGL is not used.
+            if (!UseWebGl)
+            {
+                Context = Canvas.Get2DContext();
+            }
+        }
+    }
+    Dictionary<string, WebGLUniformLocation?> _uniforms = new Dictionary<string, WebGLUniformLocation?>();
+    WebGLUniformLocation? GetUniformLocation(string name)
+    {
+        if (_uniforms.TryGetValue(name, out var uniform)) return uniform;
+        uniform = gl.GetUniformLocation(p, name);
+        _uniforms.Add(name, uniform);
+        return uniform;
+    }
+    protected bool Uniform2f(string name, float x, float y)
+    {
+        var uniformLocation = GetUniformLocation(name);
+        if (uniformLocation == null) return false;
+        gl.Uniform2f(uniformLocation, x, y);
+        return true;
+    }
+    protected bool Uniform1f(string name, float x)
+    {
+        var uniformLocation = GetUniformLocation(name);
+        if (uniformLocation == null) return false;
+        gl.Uniform1f(uniformLocation, x);
+        return true;
+    }
+    protected bool Uniform1fv(string name, IEnumerable<float> v)
+    {
+        var uniformLocation = GetUniformLocation(name);
+        if (uniformLocation == null) return false;
+        gl.Uniform1fv(uniformLocation, v);
+        return true;
+    }
+    protected bool Uniform1iv(string name, IEnumerable<int> v)
+    {
+        var uniformLocation = GetUniformLocation(name);
+        if (uniformLocation == null) return false;
+        gl.Uniform1iv(uniformLocation, v);
+        return true;
+    }
+    protected bool Uniform1i(string name, int x)
+    {
+        var uniformLocation = GetUniformLocation(name);
+        if (uniformLocation == null) return false;
+        gl.Uniform1i(uniformLocation, x);
+        return true;
+    }
+    WebGLTexture CreateImageTexture()
+    {
+        var texture = gl.CreateTexture();
+        // Bind the texture to TEXTURE_2D so we can set parameters and image data.
+        //gl.ActiveTexture(gl.TEXTURE0); // this is not needed here, but can be used if you want to use multiple textures.
+        gl.BindTexture(gl.TEXTURE_2D, texture);
+        // Set the parameters so we can render any size image.
+        gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        return texture;
+    }
+    void SetRectangle(float x, float y, float width, float height)
+    {
+        var x1 = x;
+        var x2 = x + width;
+        var y1 = y;
+        var y2 = y + height;
+        using var bufferData = new Float32Array([x1, y1, x2, y1, x1, y2, x1, y2, x2, y1, x2, y2]);
+        gl.BufferData(gl.ARRAY_BUFFER, bufferData, gl.STATIC_DRAW);
+    }
+    WebGLBuffer? positionBuffer = null;
+    WebGLBuffer? texcoordBuffer = null;
+    WebGLTexture? texture = null;
+    int positionLocation = 0;
+    int texcoordLocation = 0;
+    void UpdateTexture(Uint8Array rgbaPixels, int width, int height)
+    {
+        gl!.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, rgbaPixels);
+    }
+    void InitWebGL(int outWidth, int outHeight)
+    {
+        var canvas = Canvas ?? throw new InvalidOperationException("Canvas is not initialized.");
+        canvas.Width = outWidth;
+        canvas.Height = outHeight;
+
+        gl = canvas.GetWebGLContext();
+        if (gl == null)
+        {
+            UseWebGl = false;
+            return;
+        }
+
+        // shader program
+        p = gl.CreateProgram(vertexShader, pixelShader);
+
+        // look up where the vertex data needs to go.
+        positionLocation = gl.GetAttribLocation(p, "a_position");
+        texcoordLocation = gl.GetAttribLocation(p, "a_texCoord");
+
+        // lookup uniforms
+        //var resolutionLocation = gl.GetUniformLocation(p, "u_resolution");
+
+        // Create a buffer to put three 2d clip space points in
+        positionBuffer = gl.CreateBuffer();
+
+        // Bind it to ARRAY_BUFFER (think of it as ARRAY_BUFFER = positionBuffer)
+        gl.BindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+        // Set current ARRAY_BUFFER data (currently positionBuffer)
+        SetRectangle(0, 0, outWidth, outHeight);
+
+        // provide texture coordinates for the rectangle.
+        texcoordBuffer = gl.CreateBuffer();
+        gl.BindBuffer(gl.ARRAY_BUFFER, texcoordBuffer);
+        gl.BufferData(gl.ARRAY_BUFFER, new Float32Array(new float[] {
+            0.0f, 0.0f,
+            1.0f, 0.0f,
+            0.0f, 1.0f,
+            0.0f, 1.0f,
+            1.0f, 0.0f,
+            1.0f, 1.0f,
+    }), gl.STATIC_DRAW);
+
+        // Create a texture.
+        texture = gl.CreateTexture();
+        gl.BindTexture(gl.TEXTURE_2D, texture);
+
+        // Set the parameters so we can render any size image.
+        gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+        // // Upload the image into the texture.
+        // gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, Image);
+        UpdateTexture(Uint8Array!, width, height);
+    }
+    bool CanRun => _runTask == null || _runTask.IsCompleted;
+    bool CanCancel => _cancellationTokenSource != null && !_cancellationTokenSource.IsCancellationRequested;
+    void Render()
+    {
+        // Tell WebGL how to convert from clip space to pixels
+        if (gl == null) return;
+        var width = gl.Canvas.Width;
+        var height = gl.Canvas.Height;
+
+        // update the texture image 
+        using var uint8Array = new Uint8Array(SharedArrayBuffer!);
+        UpdateTexture(Uint8Array, width, height);
+
+        gl.Viewport(0, 0, width, height);
+
+        // Clear the canvas
+        gl.ClearColor(0, 0, 0, 0);
+        gl.Clear(gl.COLOR_BUFFER_BIT);
+
+        // Tell it to use our program (pair of shaders)
+        gl.UseProgram(p);
+
+        // set the resolution uniform
+        Uniform2f("u_resolution", width, height);
+
+        // set the pixel shader sampler uniform to texture unit 0
+        var texUnit = 0; 
+        // set active texture unit to 0
+        gl.ActiveTexture(gl.TEXTURE0 + texUnit);
+        // bind the texture to texture unit 0 (active texture unit)
+        gl.BindTexture(gl.TEXTURE_2D, texture);
+        // set the u_image uniform to texture unit 0
+        Uniform1i("u_image", texUnit);
+
+        {
+            // Bind the position buffer.
+            gl.BindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+            // Turn on the position attribute
+            gl.EnableVertexAttribArray(positionLocation);
+            // Tell the position attribute how to get data out of positionBuffer (ARRAY_BUFFER)
+            var size = 2;          // 2 components per iteration
+            var type = gl.FLOAT;   // the data is 32bit floats
+            var normalize = false; // don't normalize the data
+            var stride = 0;        // 0 = move forward size * sizeof(type) each iteration to get the next position
+            var offset = 0;        // start at the beginning of the buffer
+            gl.VertexAttribPointer(positionLocation, size, type, normalize, stride, offset);
+        }
+
+        {
+            // bind the texcoord buffer.
+            gl.BindBuffer(gl.ARRAY_BUFFER, texcoordBuffer);
+            // Turn on the texcoord attribute
+            gl.EnableVertexAttribArray(texcoordLocation);
+            // Tell the texcoord attribute how to get data out of texcoordBuffer (ARRAY_BUFFER)
+            var size = 2;          // 2 components per iteration
+            var type = gl.FLOAT;   // the data is 32bit floats
+            var normalize = false; // don't normalize the data
+            var stride = 0;        // 0 = move forward size * sizeof(type) each iteration to get the next position
+            var offset = 0;        // start at the beginning of the buffer
+            gl.VertexAttribPointer(texcoordLocation, size, type, normalize, stride, offset);
+        }
+
+        {         
+            // Draw the rectangle.
+            var primitiveType = gl.TRIANGLES;
+            var offset = 0;
+            var count = 6;
+            gl.DrawArrays(primitiveType, offset, count);
+        }
+    }
+    async Task StopIt()
+    {
+        if (_cancellationTokenSource == null) return;
+        _cancellationTokenSource.Cancel();
+        if (_runTask != null)
+        {
+            try
+            {
+                await _runTask;
+            }
+            catch { }
+        }
+        _cancellationTokenSource.Dispose();
+        _cancellationTokenSource = null;
+        _runTask = null;
+    }
+    CancellationTokenSource? _cancellationTokenSource = null;
+    void RunIt()
+    {
+        if (_cancellationTokenSource != null) return;
+        _cancellationTokenSource = new CancellationTokenSource();
+        var token = _cancellationTokenSource.Token;
+        _runTask = _RunIt(token);
+    }
+    Task? _runTask = null;
+    async Task _RunIt(CancellationToken cancellationToken)
+    {
+        if (Canvas == null) return;
+        if (!WebWorkerService.WebWorkerSupported)
+        {
+            threadCount = 0;
+        }
+        else if (JS.CrossOriginIsolated == false)
+        {
+            threadCount = 0;
+        }
+        else if (!SharedArrayBuffer.Supported)
+        {
+            threadCount = 0;
+        }
+        else
+        {
+            var hardwareConcurrency = JS.Get<int?>("navigator.hardwareConcurrency");
+            threadCount = (hardwareConcurrency ?? 2) - 1;
+        }
+        if (threadCountMax >= 0 && threadCount > threadCountMax)
+        {
+            threadCount = threadCountMax;
+        }
+        if (workers.Count < threadCount)
+        {
+            var neededWorkers = threadCount - workers.Count;
+            var newWorkers = await GetWorkers(neededWorkers);
+            workers.AddRange(newWorkers);
+        }
+        if (workers.Count < threadCount)
+        {
+            // not enough workers available.
+            threadCount = workers.Count;
+        }
+        if (threadCount == 0)
+        {
+            // no workers available. run in ui thread.
+
+        }
+        else
+        {
+            var up = true;
+            int value = 1;
+            var sw = Stopwatch.StartNew();
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                var tasks = new List<Task>(threadCount);
+                for (var i = 0; i < threadCount; i++)
+                {
+                    var worker = workers[i];
+                    var tmp = worker!.Run(() => ProcessChunk(i, threadCount, width, height, (byte)value, SharedArrayBuffer!));
+                    tasks.Add(tmp);
+                }
+                await Task.WhenAll(tasks);
+                if (UseWebGl)
+                {
+                    Render();
+                }
+                else
+                {
+                    using var imageData = new ImageData(ImageDataUint8ClampedArray!.Slice(), width, height);
+                    Context!.PutImageData(imageData, 0, 0);
+                }
+                if (up && value == 255)
+                {
+                    CycleTime = sw.Elapsed;
+                    sw.Restart();
+                    StateHasChanged();
+                    up = false;
+                }
+                else if (!up && value == 0)
+                {
+                    CycleTime = sw.Elapsed;
+                    sw.Restart();
+                    StateHasChanged();
+                    up = true;
+                }
+                if (up)
+                {
+                    value++;
+                }
+                else
+                {
+                    value--;
+                }
+            }
+        }
+    }
+    TimeSpan CycleTime = TimeSpan.Zero;
+    async Task<List<WebWorker>> GetWorkers(int count)
+    {
+        var tasks = new List<Task<WebWorker?>>(count);
+        for (var i = 0; i < count; i++)
+        {
+            tasks.Add(WebWorkerService.GetWebWorker());
+        }
+        var ret = await Task.WhenAll(tasks);
+        return ret.Where(o => o != null).Select(o => o!).ToList();
+    }
+    static void ProcessChunk(int index, int count, int width, int height, byte value, SharedArrayBuffer sharedArrayBuffer)
+    {
+        // compute the start and end indices for this chunk using the index, count and image dimensions
+        var stride = width * 4;
+        var chunkHeight = (int)Math.Floor((double)height / (double)count);
+        var chunkLength = stride * chunkHeight;
+        // calculate the starting position of the chunk in the shared array buffer
+        var chunkStartPosition = index * chunkLength;
+        if (index == count - 1)
+        {
+            // last chunk may be larger if height is not divisible by count
+            chunkHeight += height % count;
+            chunkLength = stride * chunkHeight;
+        }
+        using var uint8ClampedArray = new Uint8ClampedArray(sharedArrayBuffer);
+        var chunk = uint8ClampedArray.ReadBytes(chunkStartPosition, chunkLength);
+        for (var i = 0; i < chunkLength; i++)
+        {
+            chunk[i] = value;
+        }
+        uint8ClampedArray.WriteBytes(chunk, chunkStartPosition);
+    }
+    public void Dispose()
+    {
+        _ = StopIt();
+        Context?.Dispose();
+        Canvas?.Dispose();
+    }
+}
