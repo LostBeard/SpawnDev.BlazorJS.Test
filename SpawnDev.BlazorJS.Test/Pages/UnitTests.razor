@@ -1252,6 +1252,39 @@
         typedArray[4] = 6;
         if (typedArray[4] != 6) throw new Exception("Failed");
     }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    struct Point2D
+    {
+        public float X;
+        public float Y;
+        public Point2D(float x, float y)
+        {
+            X = x;
+            Y = y;
+        }
+    }
+    [TestMethod]
+    public void StructArrayTest()
+    {
+        var values = new Point2D[] { new(1, 2), new(3, 4), new(5, 6), new(7, 8), new(9, 10), new(11, 12), new(13, 14) };
+        using var typedArray = Uint8Array.Create(values);
+        // test reading into a preallocated struct array
+        var valuesPreAllocated = new Point2D[7];
+        typedArray.ToArray(1, valuesPreAllocated, 1, 5);
+        var match3 = valuesPreAllocated.Skip(1).Take(5).SequenceEqual(values.Skip(1).Take(5));
+        if (!match3) throw new Exception("Match Failed");
+        // test reading values from section of the TypedArray
+        var valuesReadBack = typedArray.ToArray<Point2D>(1, 5);
+        var match = values.Skip(1).Take(5).SequenceEqual(valuesReadBack);
+        if (!match) throw new Exception("Match Failed");
+        // test writing a struct array into the TypedArray
+        var newData = new Point2D[] { new(15, 16) };
+        typedArray.FromArray(newData, 1, 0, 1);
+        var valuesReadBack2 = typedArray.ToArray<Point2D>(1, 1);
+        var match2 = newData.SequenceEqual(valuesReadBack2);
+        if (!match2) throw new Exception("Match Failed");
+    }
     [TestMethod]
     public void BigIntTest()
     {
