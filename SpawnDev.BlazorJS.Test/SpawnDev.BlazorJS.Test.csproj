@@ -31,7 +31,7 @@
 		<PackageReference Include="Markdown.ColorCode" Version="3.0.0" />
 		<PackageReference Include="Radzen.Blazor" Version="7.1.2" />
 		<PackageReference Include="SpawnDev.Blazor.UnitTesting" Version="2.0.3" />
-		<PackageReference Include="SpawnDev.BlazorJS" Version="2.28.1" />
+		<PackageReference Include="SpawnDev.BlazorJS" Version="2.29.0" />
 		<PackageReference Include="SpawnDev.BlazorJS.WebWorkers" Version="2.19.0" />
 	</ItemGroup>
 
