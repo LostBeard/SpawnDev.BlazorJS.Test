@@ -142,7 +142,7 @@ namespace SpawnDev.BlazorJS.Test.UnitTests
             }, false, new string[] { "sign", "verify" });
             // save the key pair in the key store
             {
-                // start the IndexedDB transaction in ready and write mode
+                // start the IndexedDB transaction in read and write mode
                 using var tx = idb.Transaction(keyStoreName, true);
                 // get the key store
                 using var objectStore = tx.ObjectStore<string, CryptoKeyPair>(keyStoreName);
@@ -152,7 +152,7 @@ namespace SpawnDev.BlazorJS.Test.UnitTests
             // ...
             // load the key pair from the key store
             {
-                // start the IndexedDB transaction in ready only mode
+                // start the IndexedDB transaction in read only mode
                 using var tx = idb.Transaction(keyStoreName);
                 // get the key store
                 using var objectStore = tx.ObjectStore<string, CryptoKeyPair>(keyStoreName);

@@ -2,13 +2,15 @@ using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Radzen;
 using SpawnDev.BlazorJS;
-using SpawnDev.BlazorJS.JSObjects;
+using SpawnDev.BlazorJS.Diagnostics;
 using SpawnDev.BlazorJS.JsonConverters;
 using SpawnDev.BlazorJS.Test;
 using SpawnDev.BlazorJS.Test.Services;
 using SpawnDev.BlazorJS.Test.UnitTests;
 using SpawnDev.BlazorJS.Toolbox;
 using SpawnDev.BlazorJS.WebWorkers;
+
+Console.WriteLine(".Net running");
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 
@@ -32,7 +34,7 @@ builder.Services.AddKeyedSingleton<ITestService2>("bananas", (_, key) => new Tes
 builder.Services.AddSingleton<AsyncCallDispatcherTest>();
 // More app specific services
 builder.Services.AddSingleton(builder.Configuration); // used to demo appsettings reading in workers
-builder.Services.AddSingleton<MediaDevices>();
+
 builder.Services.AddSingleton<MediaDevicesService>();
 // Add app services that will be called on the main thread and/or worker threads
 builder.Services.AddSingleton<IFaceAPIService, FaceAPIService>();
@@ -44,7 +46,7 @@ builder.Services.AddSingleton<NotificationService>();
 builder.Services.AddSingleton<TooltipService>();
 builder.Services.AddSingleton<ContextMenuService>();
 
-//builder.Services.AddSingleton<JSObjectAnalyzer>();
+builder.Services.AddSingleton<JSObjectAnalyzer>();
 
 builder.Services.AddSingleton<CryptoService>();
 
@@ -56,8 +58,6 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 #if DEBUG && true
 var host = builder.Build();
 await host.StartBackgroundServices();
-
-
 
 await host.BlazorJSRunAsync();
 #else
