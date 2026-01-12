@@ -1559,7 +1559,6 @@
 
 
     #region Transfer required tests - tests what Transferable objects require transfer to be used in workers (Note: detached == neutered)
-
     /// <summary>
     /// Uses the `structuredClone()` method to determine if a transferable object is `neutered`, as in the ownership of the object has been transferred.<br/>
     /// If not already `neutered` this method will cause it to become `neutered`.
@@ -1676,8 +1675,6 @@
         }
         throw new Exception($"Unsupported global scope: {JS.GlobalThisTypeName}");
     }
-
-
     /// <summary>
     /// Transfer tests for RTCDataChannel</br>
     /// NOTE: If this test requires user interaction to get an isntance it may be disabled.
@@ -2741,5 +2738,4 @@
         public OffscreenCanvas[] OffscreenCanvasArray { get; set; }
     }
     #endregion
-
 }
