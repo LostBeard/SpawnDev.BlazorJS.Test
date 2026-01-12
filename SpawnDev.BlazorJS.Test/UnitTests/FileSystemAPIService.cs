@@ -44,7 +44,7 @@ namespace SpawnDev.BlazorJS.Test.UnitTests
             // list dir contents
             JS.Set("_storageDir", storageDir);
             var entries = await storageDir.ValuesList();
-            
+
         }
     }
 }

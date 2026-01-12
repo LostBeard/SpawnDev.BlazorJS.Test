@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Components;
 using SpawnDev.BlazorJS.Diagnostics;
 using SpawnDev.BlazorJS.JSObjects;
 using SpawnDev.BlazorJS.WebWorkers;
-using System.Diagnostics;
 using System.Reflection;
 using System.Text.RegularExpressions;
 

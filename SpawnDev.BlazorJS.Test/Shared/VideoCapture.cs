@@ -76,10 +76,12 @@ namespace SpawnDev.BlazorJS.Test.Shared
 
         public Func<Task>? OnNewFrameAsync { get; set; } = null;
 
-        private async void Window_OnAnimationFrame(double timestamp) {
+        private async void Window_OnAnimationFrame(double timestamp)
+        {
             if (IsDisposed || window.IsWrapperDisposed) return;
             var currentTime = CurrentTime;
-            if (LastFromTime != currentTime) {
+            if (LastFromTime != currentTime)
+            {
                 _frames++;
                 LastFromTime = currentTime;
                 if (OnNewFrameAsync != null)
@@ -163,7 +165,8 @@ namespace SpawnDev.BlazorJS.Test.Shared
         {
             if (IsDisposed) return;
             IsDisposed = true;
-            try {
+            try
+            {
                 Video.Pause();
             }
             catch { }

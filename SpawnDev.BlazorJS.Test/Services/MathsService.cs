@@ -13,7 +13,8 @@ namespace SpawnDev.BlazorJS.Test.Services
         public int Progress { get; set; }
     }
 
-    public interface IMathsService {
+    public interface IMathsService
+    {
         Task<string> CalculatePi(int digits);
         Task<string> CalculatePiWithActionProgress(int digits, Action<int>? progress = null);
         Task<double> EstimatePI(int sumLength);
@@ -31,17 +32,20 @@ namespace SpawnDev.BlazorJS.Test.Services
         Task CancellationTokenTest(double maxRuntimeMS, CancellationToken token);
     }
 
-    public class MathsService : IMathsService {
+    public class MathsService : IMathsService
+    {
         WebWorkerService _webWorkerService;
         WebAssemblyHostConfiguration _configuration;
-        public MathsService(WebWorkerService webWorkerService, WebAssemblyHostConfiguration configuration) {
+        public MathsService(WebWorkerService webWorkerService, WebAssemblyHostConfiguration configuration)
+        {
             _webWorkerService = webWorkerService;
             _configuration = configuration;
         }
 
         // nicholas on StackOverflow
         // https://stackoverflow.com/questions/11677369/how-to-calculate-pi-to-n-number-of-places-in-c-sharp-using-loops
-        public async Task<string> CalculatePi(int digits) {
+        public async Task<string> CalculatePi(int digits)
+        {
             var sw = new Stopwatch();
             sw.Restart();
             digits++;
@@ -49,9 +53,11 @@ namespace SpawnDev.BlazorJS.Test.Services
             uint[] r = new uint[digits * 10 / 3 + 2];
             uint[] pi = new uint[digits];
             for (int j = 0; j < x.Length; j++) x[j] = 20;
-            for (int i = 0; i < digits; i++) {
+            for (int i = 0; i < digits; i++)
+            {
                 uint carry = 0;
-                for (int j = 0; j < x.Length; j++) {
+                for (int j = 0; j < x.Length; j++)
+                {
                     uint num = (uint)(x.Length - j - 1);
                     uint dem = num * 2 + 1;
                     x[j] += carry;
@@ -65,7 +71,8 @@ namespace SpawnDev.BlazorJS.Test.Services
             }
             var result = "";
             uint c = 0;
-            for (int i = pi.Length - 1; i >= 0; i--) {
+            for (int i = pi.Length - 1; i >= 0; i--)
+            {
                 pi[i] += c;
                 c = pi[i] / 10;
                 result = (pi[i] % 10).ToString() + result;
@@ -89,7 +96,8 @@ namespace SpawnDev.BlazorJS.Test.Services
             }
         }
 
-        public async Task<string> CalculatePiWithActionProgress(int digits, Action<int>? progress = null) {
+        public async Task<string> CalculatePiWithActionProgress(int digits, Action<int>? progress = null)
+        {
             var sw = new Stopwatch();
             sw.Restart();
             digits++;
@@ -97,9 +105,11 @@ namespace SpawnDev.BlazorJS.Test.Services
             uint[] r = new uint[digits * 10 / 3 + 2];
             uint[] pi = new uint[digits];
             for (int j = 0; j < x.Length; j++) x[j] = 20;
-            for (int i = 0; i < digits; i++) {
+            for (int i = 0; i < digits; i++)
+            {
                 uint carry = 0;
-                for (int j = 0; j < x.Length; j++) {
+                for (int j = 0; j < x.Length; j++)
+                {
                     uint num = (uint)(x.Length - j - 1);
                     uint dem = num * 2 + 1;
                     x[j] += carry;
@@ -110,14 +120,16 @@ namespace SpawnDev.BlazorJS.Test.Services
                 pi[i] = (x[x.Length - 1] / 10);
                 r[x.Length - 1] = x[x.Length - 1] % 10;
                 for (int j = 0; j < x.Length; j++) x[j] = r[j] * 10;
-                if (sw.Elapsed.TotalMilliseconds > 200) {
+                if (sw.Elapsed.TotalMilliseconds > 200)
+                {
                     progress?.Invoke(i);
                     sw.Restart();
                 }
             }
             var result = "";
             uint c = 0;
-            for (int i = pi.Length - 1; i >= 0; i--) {
+            for (int i = pi.Length - 1; i >= 0; i--)
+            {
                 pi[i] += c;
                 c = pi[i] / 10;
                 result = (pi[i] % 10).ToString() + result;
@@ -125,15 +137,18 @@ namespace SpawnDev.BlazorJS.Test.Services
             return result;
         }
 
-        private IEnumerable<int> AlternatingSequence(int start = 0) {
+        private IEnumerable<int> AlternatingSequence(int start = 0)
+        {
             int i;
             bool flip;
-            if (start == 0) {
+            if (start == 0)
+            {
                 yield return 1;
                 i = 1;
                 flip = false;
             }
-            else {
+            else
+            {
                 i = (start * 2) - 1;
                 flip = start % 2 == 0;
             }
@@ -141,14 +156,17 @@ namespace SpawnDev.BlazorJS.Test.Services
             while (true) yield return ((flip = !flip) ? -1 : 1) * (i += 2);
         }
 
-        public async Task<double> EstimatePI(int sumLength) {
+        public async Task<double> EstimatePI(int sumLength)
+        {
             var lastReport = 0;
             await Task.Delay(100);
             return (4 * AlternatingSequence().Take(sumLength)
-                .Select((x, i) => {
+                .Select((x, i) =>
+                {
                     // Keep reporting events down a bit, serialization is expensive!
                     var progressDelta = (Math.Abs(i - lastReport) / (double)sumLength) * 100;
-                    if (progressDelta > 3 || i >= sumLength - 1) {
+                    if (progressDelta > 3 || i >= sumLength - 1)
+                    {
                         lastReport = i;
                         _webWorkerService.SendEventToParents("progress", new PiProgress() { Progress = i });
                     }
@@ -157,16 +175,19 @@ namespace SpawnDev.BlazorJS.Test.Services
                 .Sum(x => 1.0 / x));
         }
 
-        public async Task<double> EstimatePISlice(int sumStart, int sumLength) {
+        public async Task<double> EstimatePISlice(int sumStart, int sumLength)
+        {
             Console.WriteLine($"EstimatePISlice({sumStart},{sumLength})");
             var lastReport = 0;
             return AlternatingSequence(sumStart)
                 .Take(sumLength)
-                .Select((x, i) => {
+                .Select((x, i) =>
+                {
 
                     // Keep reporting events down a bit, serialization is expensive!
                     var progressDelta = (Math.Abs(i - lastReport) / (double)sumLength) * 100;
-                    if (progressDelta > 3 || i >= sumLength - 1) {
+                    if (progressDelta > 3 || i >= sumLength - 1)
+                    {
                         lastReport = i;
                         _webWorkerService.SendEventToParents("progress", new PiProgress() { Progress = i });
                     }

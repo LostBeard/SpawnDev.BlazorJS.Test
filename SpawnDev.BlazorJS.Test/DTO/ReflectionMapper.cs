@@ -2,6 +2,7 @@
 using System.Reflection;
 
 namespace SpawnDev.BlazorJS.DTO;
+
 public static class ReflectionMapper
 {
     static Dictionary<Type, Dictionary<string, PropertyInfo>> _typeProperties = new Dictionary<Type, Dictionary<string, PropertyInfo>>();
@@ -51,7 +52,7 @@ public static class ReflectionMapper
         var propsSource = GetTypeProperties(typeSource);
         var propsResult = GetTypeProperties(typeResult);
         var ret = new List<TResult>();
-        foreach(var sourceItem in sourceList)
+        foreach (var sourceItem in sourceList)
         {
             var targetItem = (TResult)Activator.CreateInstance(typeResult)!;
             Map<TSource, TResult>(sourceItem, targetItem, shouldCopyCallback);

@@ -1,7 +1,4 @@
-﻿using SpawnDev.BlazorJS.Test.Shared;
-using System.Diagnostics;
-using System.Linq.Dynamic.Core;
-using System.Xml.Linq;
+﻿using System.Diagnostics;
 
 namespace SpawnDev.BlazorJS.Test.GameOfLife
 {

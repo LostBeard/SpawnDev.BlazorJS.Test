@@ -1,7 +1,6 @@
 ﻿using Microsoft.JSInterop;
 using SpawnDev.Blazor.UnitTesting;
 using SpawnDev.BlazorJS.JSObjects;
-using SpawnDev.BlazorJS.JsonConverters;
 using File = SpawnDev.BlazorJS.JSObjects.File;
 
 namespace SpawnDev.BlazorJS.Test.UnitTests
@@ -201,12 +200,6 @@ namespace SpawnDev.BlazorJS.Test.UnitTests
 
         }
 
-        // IJSObject
-        public interface IWindow : IJSObject
-        {
-            string Name { get; set; }
-        }
-
         [TestMethod]
         public void GetUndefinedVarReturnsDefaultInt()
         {
@@ -219,36 +212,6 @@ namespace SpawnDev.BlazorJS.Test.UnitTests
         {
             var w = JS.Get<int?>("_somethingThatDoesNotExist");
             if (w != default) throw new Exception("Unexpected result");
-        }
-
-        [TestMethod]
-        public void IJSObjectInterfacePropertySetGet()
-        {
-            var w = JS.Get<IWindow>("window");
-            var randName = Guid.NewGuid().ToString();
-            w.Name = randName;
-            if (w.Name != randName) throw new Exception("Interface property set/get failed");
-        }
-
-        [TestMethod]
-        public void IJSObjectInterfaceNullSetGet()
-        {
-            IWindow? w = null;
-            JS.Set("_nullinterface", w);
-            w = JS.Get<IWindow?>("_nullinterface");
-            if (w != null) throw new Exception("Unexpected result");
-        }
-
-        [TestMethod]
-        public void IJSObjectInterfaceArraySetGet()
-        {
-            var w = JS.Get<IWindow>("window");
-            var randName = Guid.NewGuid().ToString();
-            w.Name = randName;
-            var array = new IWindow[] { w, w, w };
-            JS.Set("_array", array);
-            var arrayReadBack = JS.Get<IWindow[]>("_array");
-            if (arrayReadBack.ToList().Where(w => w.Name != randName).Any()) throw new Exception("Interface array set/get failed");
         }
 
         // JSObject

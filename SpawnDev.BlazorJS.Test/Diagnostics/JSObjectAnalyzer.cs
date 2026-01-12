@@ -1,6 +1,4 @@
 ﻿using SpawnDev.BlazorJS.JSObjects;
-using System.Security.Cryptography;
-using System.Text;
 
 namespace SpawnDev.BlazorJS.Diagnostics
 {

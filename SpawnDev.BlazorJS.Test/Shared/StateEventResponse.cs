@@ -1,9 +1,8 @@
 ﻿using System.Collections.Frozen;
 using System.Diagnostics.CodeAnalysis;
-using System.Reflection;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
-using System.Text.Json;
 
 namespace SpawnDev.BlazorJS.Test.Shared
 {
@@ -92,7 +91,7 @@ namespace SpawnDev.BlazorJS.Test.Shared
                 catch (JsonException e)
                 {
                     Console.WriteLine(e);
-                   
+
                 }
 
                 return null;
