@@ -124,626 +124,12 @@
     }
 
     [Inject]
-    IServiceCollection Services { get; set; }
+    IServiceCollection Services { get; set; } = default!;
+
     [Inject]
-    IServiceProvider ServicesP { get; set; }
+    IServiceProvider ServicesP { get; set; } = default!;
 
-    [TestMethod]
-    public async Task WebWorkerKeyedServiceTest()
-    {
-        if (!WebWorkerService.WebWorkerSupported)
-        {
-            throw new Exception("Worker not supported by browser. Expected failure.");
-        }
-        using var worker = await WebWorkerService.GetWebWorker();
-
-        var apples1 = worker!.GetKeyedService<ITestService2>("apples");
-        var bananas1 = worker.GetKeyedService<ITestService2>("bananas");
-
-        var apples1Id = await apples1.GetId();
-        if (apples1Id != "apples")
-        {
-            throw new Exception("Test failed");
-        }
-        var bananas1Id = await bananas1.GetId();
-        if (bananas1Id != "bananas")
-        {
-            throw new Exception("Test failed");
-        }
-    }
-
-    [TestMethod]
-    public async Task WebWorkerCreateInstance()
-    {
-        if (!WebWorkerService.WebWorkerSupported)
-        {
-            throw new Exception("Worker not supported by browser. Expected failure.");
-        }
-        using var worker = await WebWorkerService.GetWebWorker();
-
-        await worker.AddService<ITestService, TestService>();
-        var serviceSingleton1 = worker.GetService<ITestService>();
-        var serviceSingleton1Id = await serviceSingleton1.GetId();
-        Console.WriteLine($"serviceSingleton1Id: {serviceSingleton1Id}");
-
-        await worker.AddKeyedService<ITestService, TestService>("nmt");
-        var serviceScoped1 = worker.GetKeyedService<ITestService>("nmt");
-        var serviceScoped1Id = await serviceScoped1.GetId();
-        Console.WriteLine($"serviceScoped1Id: {serviceScoped1Id}");
-        //var serviceTransient1 = await worker.AddService<TestService>();
-
-        //var serviceSingleton2 = worker.GetService<ITestService>();
-        // var serviceScoped2 = worker.GetKeyedService<ITestService>("nmt");
-        // var serviceScoped2Id = await serviceScoped2.GetId();
-        // Console.WriteLine($"serviceScoped2Id: {serviceScoped2Id} ^^^^^^^^^^^^^");
-        //var serviceTransient2 = worker.GetService<ITestServiceTransient>();
-
-        // var serviceTransient1Id = await serviceSingleton1.GetId();
-        // var serviceSingleton2Id = await serviceSingleton1.GetId();
-        // var serviceScoped2Id = await serviceSingleton1.GetId();
-        // var serviceTransient2Id = await serviceSingleton1.GetId();
-        var nmt = true;
-    }
-
-    class NewExpressionTestClass
-    {
-        BlazorJSRuntime JS => BlazorJSRuntime.JS;
-        public string Name { get; private set; }
-        public NewExpressionTestClass(string name)
-        {
-            Name = name;
-            Console.WriteLine($"Name: {Name} Scope: {JS.GlobalScope.ToString()}");
-        }
-    }
-
-    [TestMethod]
-    public async Task WebWorkerNewExpression()
-    {
-        if (!WebWorkerService.WebWorkerSupported)
-        {
-            throw new Exception("Worker not supported by browser. Expected failure.");
-        }
-        using var worker = await WebWorkerService.GetWebWorker();
-        var nameToSet = "new test";
-        var serviceKey = 1;
-        await worker!.New(serviceKey, () => new NewExpressionTestClass(nameToSet));
-        var name = await worker.Run<NewExpressionTestClass, string>(serviceKey, s => s.Name);
-        if (name != nameToSet)
-        {
-            throw new Exception("Test failed");
-        }
-        var nmt = true;
-    }
-
-    [TestMethod]
-    public async Task WebWorkerRemoteClassConstructor()
-    {
-        if (!WebWorkerService.WebWorkerSupported)
-        {
-            throw new Exception("Worker not supported by browser. Expected failure.");
-        }
-        //var worker = WebWorkerService.Local;
-        using var worker = await WebWorkerService.GetWebWorker();
-        await worker.New<ITestService>("myoranges", () => new TestService("myoranges"));
-        var tsKeyed = await worker.Run<ITestService, string>("myoranges", s => s.GetId());
-        var tsKeyedKey = await worker.Run<ITestService, string>("myoranges", s => s.Key);
-        Console.WriteLine($"tsKeyedKey: {tsKeyedKey}");
-        if (tsKeyedKey != "myoranges")
-        {
-            throw new Exception("Run failed");
-        }
-        var exists1 = await worker.KeyedServiceExists<ITestService>("myoranges");
-        if (!exists1)
-        {
-            throw new Exception("KeyedServiceExists failed");
-        }
-        var removed = await worker.RemoveKeyedService<ITestService>("myoranges");
-        if (!removed)
-        {
-            throw new Exception("RemoveKeyedService failed");
-        }
-        var exists2 = await worker.KeyedServiceExists<ITestService>("myoranges");
-        if (exists2)
-        {
-            throw new Exception("KeyedServiceExists failed");
-        }
-    }
-    [TestMethod]
-    public async Task WebWorkerRemoteClassConstructorLocal()
-    {
-        if (!WebWorkerService.WebWorkerSupported)
-        {
-            throw new Exception("Worker not supported by browser. Expected failure.");
-        }
-        var worker = WebWorkerService.Local;
-        //using var worker = await WebWorkerService.GetWebWorker();
-        await worker.New<ITestService>("myoranges", () => new TestService("myoranges"));
-        var tsKeyed = await worker.Run<ITestService, string>("myoranges", s => s.GetId());
-        var tsKeyedKey = await worker.Run<ITestService, string>("myoranges", s => s.Key);
-        Console.WriteLine($"tsKeyedKey: {tsKeyedKey}");
-        if (tsKeyedKey != "myoranges")
-        {
-            throw new Exception("Run failed");
-        }
-        var exists1 = await worker.KeyedServiceExists<ITestService>("myoranges");
-        if (!exists1)
-        {
-            throw new Exception("KeyedServiceExists failed");
-        }
-        var removed = await worker.RemoveKeyedService<ITestService>("myoranges");
-        if (!removed)
-        {
-            throw new Exception("RemoveKeyedService failed");
-        }
-        var exists2 = await worker.KeyedServiceExists<ITestService>("myoranges");
-        if (exists2)
-        {
-            throw new Exception("KeyedServiceExists failed");
-        }
-    }
-
-
-    [TestMethod]
-    public async Task TaskPoolFullTest()
-    {
-        if (!WebWorkerService.WebWorkerSupported)
-        {
-            throw new Exception("Worker not supported by browser. Expected failure.");
-        }
-        await CallDispatcherBaseTestClass.Test(WebWorkerService.TaskPool);
-    }
-
-    [TestMethod]
-    public async Task TaskPoolExpressionTest()
-    {
-        if (!WebWorkerService.WebWorkerSupported)
-        {
-            throw new Exception("Worker not supported by browser. Expected failure.");
-        }
-        // static methods of any class can be called
-        // private static methods must be called from inside the class
-        // public static methods can be called from outside the class
-        var remoteInstanceId = await WebWorkerService.TaskPool.Run(() => ThisMethodWillGetCalledInAWorker(null!, JS.GlobalThisTypeName, JS.InstanceId));
-        Console.WriteLine($"{BlazorJSRuntime.JS.GlobalThisTypeName} {BlazorJSRuntime.JS.InstanceId} {remoteInstanceId}");
-    }
-
-    // The below region is used to test Func<> callbacks in WebWorker calls.
-    // Currently Func<> is not supported, only Actions are supported
-    // When support has been added for Func the below methods can be uncommented to enable testing
-    #region Test WebWorker Func callback parameter
-    // // *********** Func<> ***********
-    // [TestMethod]
-    // public async Task TaskPoolExpressionFuncTest()
-    // {
-    //     if (!WebWorkerService.WebWorkerSupported)
-    //     {
-    //         throw new Exception("Worker not supported by browser. Expected failure.");
-    //     }
-    //     var dataString = Guid.NewGuid().ToString();
-    //     var callbackFunc = () => dataString;
-    //     var dataStringRet = await WebWorkerService.TaskPool.Run(() => ThisMethodWillGetCalledInAWorker(callbackFunc));
-    //     if (dataString != dataStringRet)
-    //     {
-    //         throw new Exception("Func<string> call failed");
-    //     }
-    // }
-    // private static string ThisMethodWillGetCalledInAWorker(Func<string> funcCallback)
-    // {
-    //     return funcCallback();
-    // }
-    #endregion
-
-    #region TestWindowTask access of Window scope static property
-    [TestMethod]
-    public async Task TaskPoolExpressionStaticPropertyReadToCancelTest()
-    {
-        if (!WebWorkerService.WebWorkerSupported)
-        {
-            throw new Exception("Worker not supported by browser. Expected failure.");
-        }
-        CancelWorkers = false;
-        // CancelWorkers will be set to true on the window scope after 2000 seconds
-        // the WebWorker task will read this property every so often to check if it should continue running
-        using var cts = new CancellationTokenSource(2000);
-        cts.Token.Register(() => CancelWorkers = true);
-        var cancelled = await WebWorkerService.TaskPool.Run(() => ThisMethodWillGetCalledInAWorker(null!, 10000));
-        if (!cancelled)
-        {
-            throw new Exception("Test failed");
-        }
-    }
-    // This property will be set on the Window scope and read by the WebWorker scope
-    static bool CancelWorkers { get; set; } = false;
-
-    // Method returns true if it was cancelled, false if it ran until completion
-    private static async Task<bool> ThisMethodWillGetCalledInAWorker([FromServices] WebWorkerService webWorkerService, double maxRunTimeMS)
-    {
-        var startTime = DateTime.Now;
-        var maxRunTime = TimeSpan.FromMilliseconds(maxRunTimeMS);
-        while (DateTime.Now - startTime < maxRunTime)
-        {
-            Console.WriteLine("Waiting");
-            await Task.Delay(50);
-            var cancelled = await webWorkerService.WindowTask!.Run(() => CancelWorkers);
-            if (cancelled) return true;
-        }
-        return false;
-    }
-    #endregion
-
-    #region Test WebWorker CancellationToken parameter
-    // *********** CancellationToken ***********
-    [TestMethod]
-    public async Task TaskPoolExpressionWithCancellationTokenTest2()
-    {
-        if (!WebWorkerService.WebWorkerSupported)
-        {
-            throw new Exception("Worker not supported by browser. Expected failure.");
-        }
-        using var cts = new CancellationTokenSource(2000);
-        var cancelled = await WebWorkerService.TaskPool.Run(() => CancellableMethod(10000, cts.Token));
-        if (!cancelled) throw new Exception("Task Cancellation failed");
-    }
-    // Returns true if cancelled
-    private static async Task<bool> CancellableMethod(double maxRunTimeMS, CancellationToken token)
-    {
-        var startTime = DateTime.Now;
-        var maxRunTime = TimeSpan.FromMilliseconds(maxRunTimeMS);
-        while (DateTime.Now - startTime < maxRunTime)
-        {
-            // do some work ...
-            // check if cancelled using IsCancellationRequestedAsync extension method
-            // internally calls Task.Delay(1) to allow event handlers time to receive a cancel message
-            if (await token.IsCancellationRequestedAsync()) return true;
-        }
-        return false;
-    }
-
-    [TestMethod]
-    public async Task TaskPoolExpressionWithCancellationTokenTest()
-    {
-        if (!WebWorkerService.WebWorkerSupported)
-        {
-            throw new Exception("Worker not supported by browser. Expected failure.");
-        }
-        using var cts = new CancellationTokenSource(4000);
-        try
-        {
-            await WebWorkerService.TaskPool.Run(() => ThisMethodWillGetCalledInAWorker(10000, cts.Token));
-            Console.WriteLine($"Task Cancellation failed");
-        }
-        catch
-        {
-            Console.WriteLine($"Success. The task was cancelled");
-            return;
-        }
-        throw new Exception("Task Cancellation failed");
-    }
-    [TestMethod]
-    public async Task TaskPoolExpressionWithCancellationTokenPreCancelledTest()
-    {
-        if (!WebWorkerService.WebWorkerSupported)
-        {
-            throw new Exception("Worker not supported by browser. Expected failure.");
-        }
-        var cancelledToken = new CancellationToken(true);
-        try
-        {
-            await WebWorkerService.TaskPool.Run(() => ThisMethodWillGetCalledInAWorker(5000, cancelledToken));
-            Console.WriteLine($"Task Cancellation failed");
-        }
-        catch
-        {
-            Console.WriteLine($"Success. The task was cancelled");
-            return;
-        }
-        throw new Exception("Task Cancellation failed");
-    }
-    [TestMethod]
-    public async Task TaskPoolExpressionWithCancellationTokenNoneTest()
-    {
-        if (!WebWorkerService.WebWorkerSupported)
-        {
-            throw new Exception("Worker not supported by browser. Expected failure.");
-        }
-        await WebWorkerService.TaskPool.Run(() => ThisMethodWillGetCalledInAWorker(2000, CancellationToken.None));
-        Console.WriteLine($"Success. The task ran to completion.");
-    }
-    private static async Task ThisMethodWillGetCalledInAWorker(double maxRunTimeMS, CancellationToken token)
-    {
-        Console.WriteLine($"maxRunTimeMS: {maxRunTimeMS} token.CanBeCanceled: {token.CanBeCanceled} token.IsCancellationRequested: {token.IsCancellationRequested}");
-        var startTime = DateTime.Now;
-        var maxRunTime = TimeSpan.FromMilliseconds(maxRunTimeMS);
-        while (DateTime.Now - startTime < maxRunTime)
-        {
-            Console.WriteLine("Waiting");
-            // do some fake work
-            await Task.Delay(50);
-            // check if cancellation message received
-            await token.ThrowIfCancellationRequestedAsync();
-        }
-    }
-    [TestMethod]
-    public async Task WebWorkerCancellationTokenAlreadyCancelledTest()
-    {
-        if (!WebWorkerService.WebWorkerSupported)
-        {
-            throw new Exception("Worker not supported by browser. Expected failure.");
-        }
-        var methodInfo = typeof(MathsService).GetMethod("CancellationTokenTest");
-        using var worker = await WebWorkerService.GetWebWorker();
-        var cancelledToken = new CancellationToken(true);
-        try
-        {
-            await worker!.Call(typeof(MathsService), methodInfo!, new object[] { 5000d, cancelledToken });
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Success. The task was cancelled: {ex.Message}");
-            return;
-        }
-        throw new Exception("Task Cancellation failed");
-    }
-    #endregion
-
-    private static string ThisMethodWillGetCalledInAWorker([FromServices] BlazorJSRuntime JS, string callingScope, string instanceId)
-    {
-        Console.WriteLine($"{JS.GlobalThisTypeName} {JS.InstanceId} {callingScope} {instanceId}");
-        return JS.InstanceId;
-    }
-
-    /// <summary>
-    /// This method tests Exception handling of web worker calls.<br/>
-    /// As of version 2.15.0, simple Exception serialization is used to pass exceptions back to the caller in another context.</br>
-    /// Some exception types may not be serializable and will be deserialized to a basic Exception.<br/>
-    /// Regardless of serialization support, the created exception.Message will contain the Exception.ToString() return value.
-    /// </summary>
-    /// <returns></returns>
-    /// <exception cref="Exception"></exception>
-    [TestMethod]
-    public async Task WebWorkerExceptionTest()
-    {
-        if (!WebWorkerService.WebWorkerSupported)
-        {
-            throw new Exception("Worker not supported by browser. Expected failure.");
-        }
-        using var worker = await WebWorkerService.GetWebWorker();
-        try
-        {
-            // call method that throws a DivideByZeroException exception in the web worker context
-            // the exception will be caught by the worker and rethrown to the caller
-            var willNotGetResult = await worker!.Run(() => DivideByZero());
-        }
-        catch (DivideByZeroException ex)
-        {
-            Console.WriteLine($"WebWorkerExceptionTest expected exception message: {ex.ToString()}");
-        }
-        catch (Exception ex)
-        {
-            throw new Exception($"The DivideByZeroException exception should have been received. {ex.GetType().FullName}");
-        }
-    }
-
-    /// <summary>
-    /// This method will throw an exception in the web worker context, which gets passed back to the calling window context as.<br/>
-    /// </summary>
-    /// <returns></returns>
-    /// <exception cref="DivideByZeroException"></exception>
-    static async Task<double> DivideByZero()
-    {
-        throw new DivideByZeroException();  // this will be caught by the worker and rethrown to the caller
-    }
-
-    /// <summary>
-    /// This method tests the FileSystemSyncAccessHandle class in a worker because it is not available in a window
-    /// </summary>
-    /// <returns></returns>
-    /// <exception cref="Exception"></exception>
-    [TestMethod]
-    public async Task WebWorkerFileSystemSyncAccessHandleTest()
-    {
-        if (!WebWorkerService.WebWorkerSupported)
-        {
-            throw new Exception("Worker not supported by browser. Expected failure.");
-        }
-        using var worker = await WebWorkerService.GetWebWorker();
-        // call method that throws a DivideByZeroException exception in the web worker context
-        // the exception will be caught by the worker and rethrown to the caller
-        await worker!.Run(() => _WebWorkerFileSystemSyncAccessHandleTest(null!));
-    }
-    static async Task _WebWorkerFileSystemSyncAccessHandleTest([FromServices] BlazorJSRuntime JS)
-    {
-        var testFileName = "test.txt";
-        using var navigator = JS.Get<Navigator>("navigator");
-        using var dir = await navigator.Storage.GetDirectory();
-        try
-        {
-            await dir.RemoveEntry(testFileName);
-        }
-        catch { }
-        using var file = await dir.GetFileHandle(testFileName, true);
-        using var fileS = await file.CreateSyncAccessHandle(new FileSystemSyncAccessOptions { Mode = "readwrite-unsafe" });
-        try
-        {
-            var txt = "Hello world!";
-            var txtBytes = Encoding.UTF8.GetBytes(txt);
-            var bytesWritten = fileS.Write(txtBytes);
-            if (txtBytes.Length != bytesWritten)
-            {
-                throw new Exception($"Incorrect bytesWritten value. {bytesWritten} != {txtBytes.Length}");
-            }
-            fileS.Flush();
-            var fileSize = fileS.GetSize();
-            if (txtBytes.Length != fileSize)
-            {
-                throw new Exception($"Incorrect file size. {fileSize} != {txtBytes.Length}");
-            }
-            var rbDest = new byte[64];
-            var bytesRead = fileS.Read(rbDest, new FileSystemSyncReadWriteOptions { At = 0 });
-            JS.Log($"bytesRead: {bytesRead} {txtBytes.Length}");
-            var readBackTxt = Encoding.UTF8.GetString(rbDest, 0, (int)bytesRead);
-            if (readBackTxt != txt)
-            {
-                throw new Exception($"Readback failed: {bytesRead} bytes '{readBackTxt}' != '{txt}'");
-            }
-        }
-        finally
-        {
-            try
-            {
-                fileS.Close();
-                await dir.RemoveEntry(testFileName);
-            }
-            catch { }
-        }
-    }
-
-    [TestMethod]
-    public async Task WebWorkerAppSettingsReadTest()
-    {
-        if (!WebWorkerService.WebWorkerSupported)
-        {
-            throw new Exception("Worker not supported by browser. Expected failure.");
-        }
-        // test key to read from appsettings.json
-        var testKey = "Message";
-        // get value loaded in this context to compare to worker returned value
-        var testValueWindow = await MathService.ReadAppSettingsValue(testKey);
-        // get worker and read the value from that context
-        using var worker = await WebWorkerService.GetWebWorker();
-        var mathService = worker!.GetService<IMathsService>();
-        var testValueWorker = await mathService.ReadAppSettingsValue(testKey);
-        // compare
-        if (testValueWorker != testValueWindow) throw new Exception("Unexpected result");
-        Console.WriteLine($"WebWorkerAppSettingsReadTest value: {testValueWorker}");
-    }
-
-    [TestMethod]
-    public async Task WebWorkerTestMultiSigMethods()
-    {
-        if (!WebWorkerService.WebWorkerSupported)
-        {
-            throw new Exception("Worker not supported by browser. Expected failure.");
-        }
-        using var worker = await WebWorkerService.GetWebWorker();
-        var mathService = worker!.GetService<IMathsService>();
-        var strValueOrig = "apples";
-        var dblValueOrig = Math.PI;
-
-        // test call IMathsService.TestMultiSigMethod which has 3 signatures total.
-
-        // this call is intended for the only method with this name and 2 arguments.
-        var twoArgReadBack = await mathService.TestMultiSigMethod(strValueOrig, dblValueOrig);
-        var twoArgReadBackExpected = strValueOrig + " " + dblValueOrig;
-        if (twoArgReadBack != twoArgReadBackExpected) throw new Exception("Call to worker TestMultiSigMethod with unique number of arguments failed");
-
-        // test call IMathsService.TestMultiSigMethod which has two signatures with the same number of arguments
-
-        // this call intended for the one with a string argument.
-        var strValueReadBack = await mathService.TestMultiSigMethod(strValueOrig);
-        if (strValueOrig != strValueReadBack) throw new Exception("Call to worker TestMultiSigMethod with 1 argument failed with string");
-
-        // this call intended for the one with a double argument.
-        var dblValueReadBack = await mathService.TestMultiSigMethod(dblValueOrig);
-        if (dblValueOrig != dblValueReadBack) throw new Exception("Call to worker TestMultiSigMethod with 1 argument failed with double");
-    }
-
-    [TestMethod]
-    public async Task WebWorkerGenericsTest()
-    {
-        if (!WebWorkerService.WebWorkerSupported)
-        {
-            throw new Exception("Worker not supported by browser. Expected failure.");
-        }
-        using var worker = await WebWorkerService.GetWebWorker();
-        var mathService = worker!.GetService<IMathsService>();
-        var value1 = "apples";
-        var value2 = 42;
-        var value2ReadBack = await mathService.TestGenerics<string, int>(value1, value2);
-        if (value2ReadBack != value2) throw new Exception("Unexpected result");
-    }
-
-    [TestMethod]
-    public async Task WebWorkerTest()
-    {
-        if (!WebWorkerService.WebWorkerSupported)
-        {
-            throw new Exception("Worker not supported by browser. Expected failure.");
-        }
-        using var worker = await WebWorkerService.GetWebWorker();
-        var mathService = worker!.GetService<IMathsService>();
-        var randValue = Guid.NewGuid().ToString();
-        await mathService.SetValueTest(randValue);
-        var readBack = await mathService.GetValueTest();
-        if (readBack != randValue) throw new Exception("Unexpected result");
-    }
-
-    [TestMethod]
-    public async Task WebWorkersTest()
-    {
-        if (!WebWorkerService.WebWorkerSupported)
-        {
-            throw new Exception("Worker not supported by browser. Expected failure.");
-        }
-        using var workerA = await WebWorkerService.GetWebWorker();
-        using var workerB = await WebWorkerService.GetWebWorker();
-        var mathServiceA = workerA!.GetService<IMathsService>();
-        var mathServiceB = workerB!.GetService<IMathsService>();
-        var randValue = Guid.NewGuid().ToString();
-        await mathServiceA.SetValueTest(randValue);
-        var readBack = await mathServiceB.GetValueTest();
-        if (readBack == randValue) throw new Exception("Unexpected result");
-    }
-
-    [TestMethod]
-    public async Task SharedWebWorkerTest()
-    {
-        if (!WebWorkerService.SharedWebWorkerSupported)
-        {
-            throw new Exception("SharedWorker not supported by browser. Expected failure.");
-        }
-
-        var thisInstanceId = JS.InstanceId;
-
-        using var worker = await WebWorkerService.GetSharedWebWorker();
-
-        var workerInstanceId = await worker!.Run(() => JS.InstanceId);
-        Console.WriteLine($"thisInstanceId: {thisInstanceId}");
-        Console.WriteLine($"workerInstanceId: {workerInstanceId}");
-
-
-        var mathService = worker.GetService<IMathsService>();
-        var randValue = Guid.NewGuid().ToString();
-        await mathService.SetValueTest(randValue);
-        var readBack = await mathService.GetValueTest();
-        Console.WriteLine($"SharedWebWorkerTest: {readBack}");
-        if (readBack != randValue) throw new Exception("Unexpected result");
-    }
-
-    [TestMethod]
-    public async Task SharedWebWorkersByName()
-    {
-        if (!WebWorkerService.SharedWebWorkerSupported)
-        {
-            throw new Exception("SharedWorker not supported by browser. Expected failure.");
-        }
-        // workerA1 and workerA2 will refer to the same shared worker
-        // workerB is a separate worker instance
-        using var workerA1 = await WebWorkerService.GetSharedWebWorker("workerA");
-        using var workerA2 = await WebWorkerService.GetSharedWebWorker("workerA");
-        using var workerB = await WebWorkerService.GetSharedWebWorker("workerB");
-        var mathServiceA1 = workerA1!.GetService<IMathsService>();
-        var mathServiceA2 = workerA2!.GetService<IMathsService>();
-        var mathServiceB = workerB!.GetService<IMathsService>();
-        var valueSetWorkerA1 = Guid.NewGuid().ToString();
-        await mathServiceA1.SetValueTest(valueSetWorkerA1);
-        var valueGetWorkerB = await mathServiceB.GetValueTest();
-        var valueGetWorkerA1 = await mathServiceA1.GetValueTest();
-        var valueGetWorkerA2 = await mathServiceA2.GetValueTest();
-        if (valueGetWorkerA1 != valueSetWorkerA1) throw new Exception("Unexpected result");
-        if (valueGetWorkerA2 != valueSetWorkerA1) throw new Exception("SharedWorker appears not shared");
-        if (valueGetWorkerB == valueSetWorkerA1) throw new Exception("SharedWorker with different name unexpectedly same as first SharedWorker");
-    }
+    #region Crypto
 
     /// <summary>
     /// Tests signing and verification<br/>
@@ -931,7 +317,9 @@
         }
         return arrayBuffer;
     }
+    #endregion
 
+    #region AsyncIterator
     [TestMethod]
     public async Task TestSymbolsAndAsyncIterator()
     {
@@ -944,207 +332,6 @@
             result = await asyncIterator.Next();
         }
         JS.Log("Done");
-    }
-
-
-    #region WorkerPool Worker Disposal Test
-
-    [TestMethod]
-    public async Task WebWorkerTaskPoolWorkerDisposalTest()
-    {
-        if (!WebWorkerService.WebWorkerSupported)
-        {
-            throw new Exception("Worker not supported by browser. Expected failure.");
-        }
-        // Cancel the task after 2 seconds
-        var worker = await WebWorkerService.TaskPool.GetWorkerAsync();
-        Console.WriteLine($"WebWorkerService.TaskPool count/max before disposal: {WebWorkerService.TaskPool.WorkersRunning} / {WebWorkerService.TaskPool.MaxPoolSize}");
-        worker.Dispose();
-        Console.WriteLine($"WebWorkerService.TaskPool count immediately after disposal: {WebWorkerService.TaskPool.WorkersRunning}");
-        var worker2 = await WebWorkerService.TaskPool.GetWorkerAsync();
-        //await Task.Delay(2000);
-        Console.WriteLine($"WebWorkerService.TaskPool count after disposal and await : {WebWorkerService.TaskPool.WorkersRunning}");
-        worker2.ReleaseLock();
-
-        await Task.Delay(2000);
-        Console.WriteLine($"WebWorkerService.TaskPool count after disposal and await (b) : {WebWorkerService.TaskPool.WorkersRunning}");
-    }
-    #endregion
-
-    #region SharedCancellationTokenSource Test
-
-    [TestMethod]
-    public async Task WebWorkerSharedCancellationTokenSourceTest()
-    {
-        if (!WebWorkerService.WebWorkerSupported)
-        {
-            throw new NotSupportedException("Worker not supported by browser. Expected failure.");
-        }
-        if (JS.CrossOriginIsolated == false)
-        {
-            throw new NotSupportedException("Not CrossOriginIsolated. Expected failure.");
-        }
-        if (!SharedArrayBuffer.Supported)
-        {
-            throw new Exception("SharedArrayBuffer not supported by browser. Expected failure.");
-        }
-        var retd = -2;
-        var loops = 0;
-        using (var cts = new SharedCancellationTokenSource())
-        {
-            var token = cts.Token;
-            var runningTask = WebWorkerService.TaskPool.Run(() => AssembleSyncXXX(token));
-            while (true)
-            {
-                ++loops;
-                try
-                {
-                    retd = await runningTask.WaitAsync(TimeSpan.FromMilliseconds(10));
-                    break;
-                }
-                catch (TimeoutException) { }
-                cts.Cancel();
-            }
-        }
-        Console.WriteLine($"main retd: {retd}, loops: {loops}");
-    }
-    static int AssembleSyncXXX(SharedCancellationToken token)
-    {
-        for (var i = 0; i < 100000000; i++)
-        {
-            if (token.IsCancellationRequested) return i;
-        }
-        return -42;
-    }
-
-    [TestMethod]
-    public async Task WebWorkerSharedCancellationTokenTest()
-    {
-        if (!WebWorkerService.WebWorkerSupported)
-        {
-            throw new Exception("Worker not supported by browser. Expected failure.");
-        }
-        if (JS.CrossOriginIsolated == false)
-        {
-            throw new NotSupportedException("Not CrossOriginIsolated. Expected failure.");
-        }
-        if (!SharedArrayBuffer.Supported)
-        {
-            throw new Exception("SharedArrayBuffer not supported by browser. Expected failure.");
-        }
-        // Cancel the task after 2 seconds
-        using var cts = new SharedCancellationTokenSource(2000);
-        var i = await WebWorkerService.TaskPool.Run(() => CancellableMethod(10000, cts.Token));
-        if (i == -1) throw new Exception("Task Cancellation failed");
-    }
-
-    // Returns -1 if not cancelled
-    // This method will run for 10 seconds if not cancelled
-    private static long CancellableMethod(double maxRunTimeMS, SharedCancellationToken token)
-    {
-        Console.WriteLine(">> CancellableMethod");
-        var startTime = DateTime.Now;
-        var maxRunTime = TimeSpan.FromMilliseconds(maxRunTimeMS);
-        long i = 0;
-        while (DateTime.Now - startTime < maxRunTime)
-        {
-            // do some work ...
-            i += 1;
-            // check if cancelled message received
-            Console.WriteLine("?");
-            if (token.IsCancellationRequested) return i;
-        }
-        Console.WriteLine("<< CancellableMethod");
-        return -1;
-    }
-    #endregion
-
-    #region Atomics
-    [TestMethod]
-    public async Task AtomicsTest()
-    {
-        if (JS.CrossOriginIsolated == false)
-        {
-            throw new NotSupportedException("Not CrossOriginIsolated. Expected failure.");
-        }
-        if (!SharedArrayBuffer.Supported)
-        {
-            throw new Exception("SharedArrayBuffer not supported by browser. Expected failure.");
-        }
-        var values = new int[] { 0, 1, 2, 3, 55, 5, 6, 7 };
-        JS.Set("values", values);
-        using var sharedArrayBuffer = new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT * values.Length);
-        using var typedArray = new Int32Array(sharedArrayBuffer);
-        typedArray.Set(new byte[] { 1, 2, 3, 55, 5, 6, 7 }, 1);
-        JS.Set("typedArray", typedArray);
-        JS.Log("typedArray", typedArray);
-        var oldValue = Atomics.Add(typedArray, 1, 42);
-        Console.WriteLine($"oldValue: {oldValue}");
-        if (oldValue != values[1]) throw new Exception("Match Failed 1");
-        var curValue = Atomics.Load(typedArray, 1);
-        Console.WriteLine($"curValue: {curValue}");
-        if (curValue != 43) throw new Exception("Match Failed 2");
-        var ret = await WebWorkerService.TaskPool.Run(() => WebWorkerAtomicsTest(values, sharedArrayBuffer, 6));
-        if (ret != typedArray[6]) throw new Exception("Match Failed 3");
-    }
-    static int WebWorkerAtomicsTest(int[] values, SharedArrayBuffer sharedArrayBuffer, long index)
-    {
-        using var typedArray = new Int32Array(sharedArrayBuffer);
-        Console.WriteLine($"worker exchanging [{index}] with 1");
-        var oldValue = Atomics.Exchange(typedArray, index, 1);
-        Console.WriteLine($"worker oldValue 6a: {oldValue}");
-        oldValue = Atomics.Add(typedArray, index, 42);
-        Console.WriteLine($"worker oldValue a2: {oldValue}");
-        if (oldValue != values[1]) throw new Exception("Match Failed 1");
-        var curValue = Atomics.Load(typedArray, index);
-        Console.WriteLine($"curValue: {curValue}");
-        if (curValue != 43) throw new Exception("Match Failed 2");
-        return curValue;
-    }
-    [TestMethod]
-    public async Task AtomicsSharedArrayBufferBigInt64ArrayTest()
-    {
-        if (!SharedArrayBuffer.Supported)
-        {
-            throw new Exception("SharedArrayBuffer not supported by browser. Expected failure.");
-        }
-        if (!BigInt64Array.Supported)
-        {
-            throw new Exception("BigInt64Array not supported by browser. Expected failure.");
-        }
-        var bigValue = long.MaxValue - 100;
-        var values = new long[] { 0, 1, 2, 3, 55, 5, 6, 7 };
-        JS.Set("values", values);
-        using var sharedArrayBuffer = new SharedArrayBuffer(BigInt64Array.BYTES_PER_ELEMENT * values.Length);
-        using var typedArray = new BigInt64Array(sharedArrayBuffer);
-        typedArray.Set(values);
-        JS.Set("typedArray", typedArray);
-        JS.Log("typedArray", typedArray);
-        Atomics.Exchange(typedArray, 1, bigValue);
-        if (typedArray[1] != bigValue) throw new Exception("Match Failed 1");
-        Atomics.Exchange(typedArray, 1, values[1]);
-        var oldValue = Atomics.Add(typedArray, 1, 42);
-        Console.WriteLine($"oldValue: {oldValue}");
-        if (oldValue != values[1]) throw new Exception("Match Failed 1a");
-        var curValue = Atomics.Load(typedArray, 1);
-        Console.WriteLine($"curValue: {curValue}");
-        if (curValue != 43) throw new Exception("Match Failed 2");
-        var ret = await WebWorkerService.TaskPool.Run(() => WebWorkerAtomicsSharedArrayBufferBigInt64ArrayTest(values, sharedArrayBuffer, 6));
-        if (ret != typedArray[6]) throw new Exception("Match Failed 3");
-    }
-    static long WebWorkerAtomicsSharedArrayBufferBigInt64ArrayTest(long[] values, SharedArrayBuffer sharedArrayBuffer, long index)
-    {
-        using var typedArray = new BigInt64Array(sharedArrayBuffer);
-        Console.WriteLine($"worker exchanging [{index}] with 1");
-        var oldValue = Atomics.Exchange(typedArray, index, 1);
-        Console.WriteLine($"worker oldValue 6a: {oldValue}");
-        oldValue = Atomics.Add(typedArray, index, 42);
-        Console.WriteLine($"worker oldValue a2: {oldValue}");
-        if (oldValue != values[1]) throw new Exception("Match Failed 1");
-        var curValue = Atomics.Load(typedArray, index);
-        Console.WriteLine($"curValue: {curValue}");
-        if (curValue != 43) throw new Exception("Match Failed 2");
-        return curValue;
     }
     #endregion
 
@@ -1250,7 +437,7 @@
     {
         if (!BigUint64Array.Supported)
         {
-            throw new Exception("BigUint64Array not supported by browser. Expected failure.");
+            throw new UnsupportedTestException("BigUint64Array not supported by browser.");
         }
         var values = new ulong[] { 0, 1, 2, 3, 1950062603343432523L, 5, 6, 7 };
         JS.Set("values", values);
@@ -1271,7 +458,7 @@
     {
         if (!BigInt64Array.Supported)
         {
-            throw new Exception("BigInt64Array not supported by browser. Expected failure.");
+            throw new UnsupportedTestException("BigInt64Array not supported by browser.");
         }
         var values = new long[] { 0, 1, 2, 3, 1950062603343432523L, 5, 6, 7 };
         JS.Set("values", values);
@@ -1366,73 +553,839 @@
     }
 
     #endregion
+
+    #region WebWorker
+
     [TestMethod]
-    public async Task LockManagerTest()
+    public async Task WebWorkerKeyedServiceTest()
     {
-        if (WebWorkerService.Locks == null)
+        if (!WebWorkerService.WebWorkerSupported)
         {
-            throw new Exception("Locks not supported by browser. Expected failure.");
+            throw new UnsupportedTestException("Worker not supported by browser.");
         }
-        JS.Log("requesting lock");
-        await WebWorkerService.Locks.Request("my_lock", async (lockInfo) =>
+        using var worker = await WebWorkerService.GetWebWorker();
+
+        var apples1 = worker!.GetKeyedService<ITestService2>("apples");
+        var bananas1 = worker.GetKeyedService<ITestService2>("bananas");
+
+        var apples1Id = await apples1.GetId();
+        if (apples1Id != "apples")
         {
-            // because this is an exclusive lock,
-            // the code in this callback will never run in more than 1 thread at a time.
-            JS.Log("have lock", lockInfo);
-            // simulating async work like synchronizing a browser db to the server
-            await Task.Delay(1000);
-            // the lock is not released until this async method exits
-            JS.Log("releasing lock");
-        });
-        JS.Log("released lock");
-    }
-    [TestMethod]
-    public async Task LockManagerRequestHandleTest()
-    {
-        if (WebWorkerService.Locks == null)
-        {
-            throw new Exception("Locks not supported by browser. Expected failure.");
+            throw new Exception("Test failed");
         }
-        JS.Log("requesting lock");
-        TaskCompletionSource tcs = await WebWorkerService.Locks.RequestHandle("my_lock");
-        // because this is an exclusive lock,
-        // the code in this callback will never run in more than 1 thread at a time.
-        JS.Log("have lock");
-        // simulating async work like synchronizing a browser db to the server
-        await Task.Delay(1000);
-        // the lock is not released until this async method exits
-        JS.Log("releasing lock");
-        tcs.SetResult();
-        JS.Log("released lock");
-    }
-    [TestMethod]
-    public async Task LockManagerReturnValueTest()
-    {
-        if (WebWorkerService.Locks == null)
+        var bananas1Id = await bananas1.GetId();
+        if (bananas1Id != "bananas")
         {
-            throw new Exception("Locks not supported by browser. Expected failure.");
+            throw new Exception("Test failed");
         }
-        using var navigator = JS.Get<Navigator>("navigator");
-        using var locks = navigator.Locks;
-        var randId = Guid.NewGuid().ToString();
-        Console.WriteLine("requesting lock");
-        var clientId2 = await locks.Request(randId, (l) =>
-        {
-            return "apples!!!!~";
-        });
-        Console.WriteLine($"released lock: {clientId2}");
     }
 
+    [TestMethod]
+    public async Task WebWorkerCreateInstance()
+    {
+        if (!WebWorkerService.WebWorkerSupported)
+        {
+            throw new UnsupportedTestException("Worker not supported by browser.");
+        }
+        using var worker = await WebWorkerService.GetWebWorker();
+
+        await worker.AddService<ITestService, TestService>();
+        var serviceSingleton1 = worker.GetService<ITestService>();
+        var serviceSingleton1Id = await serviceSingleton1.GetId();
+        Console.WriteLine($"serviceSingleton1Id: {serviceSingleton1Id}");
+
+        await worker.AddKeyedService<ITestService, TestService>("nmt");
+        var serviceScoped1 = worker.GetKeyedService<ITestService>("nmt");
+        var serviceScoped1Id = await serviceScoped1.GetId();
+        Console.WriteLine($"serviceScoped1Id: {serviceScoped1Id}");
+        //var serviceTransient1 = await worker.AddService<TestService>();
+
+        //var serviceSingleton2 = worker.GetService<ITestService>();
+        // var serviceScoped2 = worker.GetKeyedService<ITestService>("nmt");
+        // var serviceScoped2Id = await serviceScoped2.GetId();
+        // Console.WriteLine($"serviceScoped2Id: {serviceScoped2Id} ^^^^^^^^^^^^^");
+        //var serviceTransient2 = worker.GetService<ITestServiceTransient>();
+
+        // var serviceTransient1Id = await serviceSingleton1.GetId();
+        // var serviceSingleton2Id = await serviceSingleton1.GetId();
+        // var serviceScoped2Id = await serviceSingleton1.GetId();
+        // var serviceTransient2Id = await serviceSingleton1.GetId();
+        var nmt = true;
+    }
+
+    class NewExpressionTestClass
+    {
+        BlazorJSRuntime JS => BlazorJSRuntime.JS;
+        public string Name { get; private set; }
+        public NewExpressionTestClass(string name)
+        {
+            Name = name;
+            Console.WriteLine($"Name: {Name} Scope: {JS.GlobalScope.ToString()}");
+        }
+    }
+
+    [TestMethod]
+    public async Task WebWorkerNewExpression()
+    {
+        if (!WebWorkerService.WebWorkerSupported)
+        {
+            throw new UnsupportedTestException("Worker not supported by browser.");
+        }
+        using var worker = await WebWorkerService.GetWebWorker();
+        var nameToSet = "new test";
+        var serviceKey = 1;
+        await worker!.New(serviceKey, () => new NewExpressionTestClass(nameToSet));
+        var name = await worker.Run<NewExpressionTestClass, string>(serviceKey, s => s.Name);
+        if (name != nameToSet)
+        {
+            throw new Exception("Test failed");
+        }
+        var nmt = true;
+    }
+
+    [TestMethod]
+    public async Task WebWorkerRemoteClassConstructor()
+    {
+        if (!WebWorkerService.WebWorkerSupported)
+        {
+            throw new UnsupportedTestException("Worker not supported by browser.");
+        }
+        //var worker = WebWorkerService.Local;
+        using var worker = await WebWorkerService.GetWebWorker();
+        await worker.New<ITestService>("myoranges", () => new TestService("myoranges"));
+        var tsKeyed = await worker.Run<ITestService, string>("myoranges", s => s.GetId());
+        var tsKeyedKey = await worker.Run<ITestService, string>("myoranges", s => s.Key);
+        Console.WriteLine($"tsKeyedKey: {tsKeyedKey}");
+        if (tsKeyedKey != "myoranges")
+        {
+            throw new Exception("Run failed");
+        }
+        var exists1 = await worker.KeyedServiceExists<ITestService>("myoranges");
+        if (!exists1)
+        {
+            throw new Exception("KeyedServiceExists failed");
+        }
+        var removed = await worker.RemoveKeyedService<ITestService>("myoranges");
+        if (!removed)
+        {
+            throw new Exception("RemoveKeyedService failed");
+        }
+        var exists2 = await worker.KeyedServiceExists<ITestService>("myoranges");
+        if (exists2)
+        {
+            throw new Exception("KeyedServiceExists failed");
+        }
+    }
+    [TestMethod]
+    public async Task WebWorkerRemoteClassConstructorLocal()
+    {
+        if (!WebWorkerService.WebWorkerSupported)
+        {
+            throw new UnsupportedTestException("Worker not supported by browser.");
+        }
+        var worker = WebWorkerService.Local;
+        //using var worker = await WebWorkerService.GetWebWorker();
+        await worker.New<ITestService>("myoranges", () => new TestService("myoranges"));
+        var tsKeyed = await worker.Run<ITestService, string>("myoranges", s => s.GetId());
+        var tsKeyedKey = await worker.Run<ITestService, string>("myoranges", s => s.Key);
+        Console.WriteLine($"tsKeyedKey: {tsKeyedKey}");
+        if (tsKeyedKey != "myoranges")
+        {
+            throw new Exception("Run failed");
+        }
+        var exists1 = await worker.KeyedServiceExists<ITestService>("myoranges");
+        if (!exists1)
+        {
+            throw new Exception("KeyedServiceExists failed");
+        }
+        var removed = await worker.RemoveKeyedService<ITestService>("myoranges");
+        if (!removed)
+        {
+            throw new Exception("RemoveKeyedService failed");
+        }
+        var exists2 = await worker.KeyedServiceExists<ITestService>("myoranges");
+        if (exists2)
+        {
+            throw new Exception("KeyedServiceExists failed");
+        }
+    }
+
+
+    [TestMethod]
+    public async Task TaskPoolFullTest()
+    {
+        if (!WebWorkerService.WebWorkerSupported)
+        {
+            throw new UnsupportedTestException("Worker not supported by browser.");
+        }
+        await CallDispatcherBaseTestClass.Test(WebWorkerService.TaskPool);
+    }
+
+    [TestMethod]
+    public async Task TaskPoolExpressionTest()
+    {
+        if (!WebWorkerService.WebWorkerSupported)
+        {
+            throw new UnsupportedTestException("Worker not supported by browser.");
+        }
+        // static methods of any class can be called
+        // private static methods must be called from inside the class
+        // public static methods can be called from outside the class
+        var remoteInstanceId = await WebWorkerService.TaskPool.Run(() => ThisMethodWillGetCalledInAWorker(null!, JS.GlobalThisTypeName, JS.InstanceId));
+        Console.WriteLine($"{BlazorJSRuntime.JS.GlobalThisTypeName} {BlazorJSRuntime.JS.InstanceId} {remoteInstanceId}");
+    }
+
+    // The below region is used to test Func<> callbacks in WebWorker calls.
+    // Currently Func<> is not supported, only Actions are supported
+    // When support has been added for Func the below methods can be uncommented to enable testing
+    #region Test WebWorker Func callback parameter
+    // // *********** Func<> ***********
+    // [TestMethod]
+    // public async Task TaskPoolExpressionFuncTest()
+    // {
+    //     if (!WebWorkerService.WebWorkerSupported)
+    //     {
+    //         throw new UnsupportedTestException("Worker not supported by browser.");
+    //     }
+    //     var dataString = Guid.NewGuid().ToString();
+    //     var callbackFunc = () => dataString;
+    //     var dataStringRet = await WebWorkerService.TaskPool.Run(() => ThisMethodWillGetCalledInAWorker(callbackFunc));
+    //     if (dataString != dataStringRet)
+    //     {
+    //         throw new Exception("Func<string> call failed");
+    //     }
+    // }
+    // private static string ThisMethodWillGetCalledInAWorker(Func<string> funcCallback)
+    // {
+    //     return funcCallback();
+    // }
+    #endregion
+
+    #region TestWindowTask access of Window scope static property
+    [TestMethod]
+    public async Task TaskPoolExpressionStaticPropertyReadToCancelTest()
+    {
+        if (!WebWorkerService.WebWorkerSupported)
+        {
+            throw new UnsupportedTestException("Worker not supported by browser.");
+        }
+        CancelWorkers = false;
+        // CancelWorkers will be set to true on the window scope after 2000 seconds
+        // the WebWorker task will read this property every so often to check if it should continue running
+        using var cts = new CancellationTokenSource(2000);
+        cts.Token.Register(() => CancelWorkers = true);
+        var cancelled = await WebWorkerService.TaskPool.Run(() => ThisMethodWillGetCalledInAWorker(null!, 10000));
+        if (!cancelled)
+        {
+            throw new Exception("Test failed");
+        }
+    }
+    // This property will be set on the Window scope and read by the WebWorker scope
+    static bool CancelWorkers { get; set; } = false;
+
+    // Method returns true if it was cancelled, false if it ran until completion
+    private static async Task<bool> ThisMethodWillGetCalledInAWorker([FromServices] WebWorkerService webWorkerService, double maxRunTimeMS)
+    {
+        var startTime = DateTime.Now;
+        var maxRunTime = TimeSpan.FromMilliseconds(maxRunTimeMS);
+        while (DateTime.Now - startTime < maxRunTime)
+        {
+            Console.WriteLine("Waiting");
+            await Task.Delay(50);
+            var cancelled = await webWorkerService.WindowTask!.Run(() => CancelWorkers);
+            if (cancelled) return true;
+        }
+        return false;
+    }
+    #endregion
+
+    #region Test WebWorker CancellationToken parameter
+    // *********** CancellationToken ***********
+    [TestMethod]
+    public async Task TaskPoolExpressionWithCancellationTokenTest2()
+    {
+        if (!WebWorkerService.WebWorkerSupported)
+        {
+            throw new UnsupportedTestException("Worker not supported by browser.");
+        }
+        using var cts = new CancellationTokenSource(2000);
+        var cancelled = await WebWorkerService.TaskPool.Run(() => CancellableMethod(10000, cts.Token));
+        if (!cancelled) throw new Exception("Task Cancellation failed");
+    }
+    // Returns true if cancelled
+    private static async Task<bool> CancellableMethod(double maxRunTimeMS, CancellationToken token)
+    {
+        var startTime = DateTime.Now;
+        var maxRunTime = TimeSpan.FromMilliseconds(maxRunTimeMS);
+        while (DateTime.Now - startTime < maxRunTime)
+        {
+            // do some work ...
+            // check if cancelled using IsCancellationRequestedAsync extension method
+            // internally calls Task.Delay(1) to allow event handlers time to receive a cancel message
+            if (await token.IsCancellationRequestedAsync()) return true;
+        }
+        return false;
+    }
+
+    [TestMethod]
+    public async Task TaskPoolExpressionWithCancellationTokenTest()
+    {
+        if (!WebWorkerService.WebWorkerSupported)
+        {
+            throw new UnsupportedTestException("Worker not supported by browser.");
+        }
+        using var cts = new CancellationTokenSource(4000);
+        try
+        {
+            await WebWorkerService.TaskPool.Run(() => ThisMethodWillGetCalledInAWorker(10000, cts.Token));
+            Console.WriteLine($"Task Cancellation failed");
+        }
+        catch
+        {
+            Console.WriteLine($"Success. The task was cancelled");
+            return;
+        }
+        throw new Exception("Task Cancellation failed");
+    }
+    [TestMethod]
+    public async Task TaskPoolExpressionWithCancellationTokenPreCancelledTest()
+    {
+        if (!WebWorkerService.WebWorkerSupported)
+        {
+            throw new UnsupportedTestException("Worker not supported by browser.");
+        }
+        var cancelledToken = new CancellationToken(true);
+        try
+        {
+            await WebWorkerService.TaskPool.Run(() => ThisMethodWillGetCalledInAWorker(5000, cancelledToken));
+            Console.WriteLine($"Task Cancellation failed");
+        }
+        catch
+        {
+            Console.WriteLine($"Success. The task was cancelled");
+            return;
+        }
+        throw new Exception("Task Cancellation failed");
+    }
+    [TestMethod]
+    public async Task TaskPoolExpressionWithCancellationTokenNoneTest()
+    {
+        if (!WebWorkerService.WebWorkerSupported)
+        {
+            throw new UnsupportedTestException("Worker not supported by browser.");
+        }
+        await WebWorkerService.TaskPool.Run(() => ThisMethodWillGetCalledInAWorker(2000, CancellationToken.None));
+        Console.WriteLine($"Success. The task ran to completion.");
+    }
+    private static async Task ThisMethodWillGetCalledInAWorker(double maxRunTimeMS, CancellationToken token)
+    {
+        Console.WriteLine($"maxRunTimeMS: {maxRunTimeMS} token.CanBeCanceled: {token.CanBeCanceled} token.IsCancellationRequested: {token.IsCancellationRequested}");
+        var startTime = DateTime.Now;
+        var maxRunTime = TimeSpan.FromMilliseconds(maxRunTimeMS);
+        while (DateTime.Now - startTime < maxRunTime)
+        {
+            Console.WriteLine("Waiting");
+            // do some fake work
+            await Task.Delay(50);
+            // check if cancellation message received
+            await token.ThrowIfCancellationRequestedAsync();
+        }
+    }
+    [TestMethod]
+    public async Task WebWorkerCancellationTokenAlreadyCancelledTest()
+    {
+        if (!WebWorkerService.WebWorkerSupported)
+        {
+            throw new UnsupportedTestException("Worker not supported by browser.");
+        }
+        var methodInfo = typeof(MathsService).GetMethod("CancellationTokenTest");
+        using var worker = await WebWorkerService.GetWebWorker();
+        var cancelledToken = new CancellationToken(true);
+        try
+        {
+            await worker!.Call(typeof(MathsService), methodInfo!, new object[] { 5000d, cancelledToken });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Success. The task was cancelled: {ex.Message}");
+            return;
+        }
+        throw new Exception("Task Cancellation failed");
+    }
+    #endregion
+
+    private static string ThisMethodWillGetCalledInAWorker([FromServices] BlazorJSRuntime JS, string callingScope, string instanceId)
+    {
+        Console.WriteLine($"{JS.GlobalThisTypeName} {JS.InstanceId} {callingScope} {instanceId}");
+        return JS.InstanceId;
+    }
+
+    /// <summary>
+    /// This method tests Exception handling of web worker calls.<br/>
+    /// As of version 2.15.0, simple Exception serialization is used to pass exceptions back to the caller in another context.</br>
+    /// Some exception types may not be serializable and will be deserialized to a basic Exception.<br/>
+    /// Regardless of serialization support, the created exception.Message will contain the Exception.ToString() return value.
+    /// </summary>
+    /// <returns></returns>
+    /// <exception cref="Exception"></exception>
+    [TestMethod]
+    public async Task WebWorkerExceptionTest()
+    {
+        if (!WebWorkerService.WebWorkerSupported)
+        {
+            throw new UnsupportedTestException("Worker not supported by browser.");
+        }
+        using var worker = await WebWorkerService.GetWebWorker();
+        try
+        {
+            // call method that throws a DivideByZeroException exception in the web worker context
+            // the exception will be caught by the worker and rethrown to the caller
+            var willNotGetResult = await worker!.Run(() => DivideByZero());
+        }
+        catch (DivideByZeroException ex)
+        {
+            Console.WriteLine($"WebWorkerExceptionTest expected exception message: {ex.ToString()}");
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"The DivideByZeroException exception should have been received. {ex.GetType().FullName}");
+        }
+    }
+
+    /// <summary>
+    /// This method will throw an exception in the web worker context, which gets passed back to the calling window context as.<br/>
+    /// </summary>
+    /// <returns></returns>
+    /// <exception cref="DivideByZeroException"></exception>
+    static async Task<double> DivideByZero()
+    {
+        throw new DivideByZeroException();  // this will be caught by the worker and rethrown to the caller
+    }
+
+    /// <summary>
+    /// This method tests the FileSystemSyncAccessHandle class in a worker because it is not available in a window
+    /// </summary>
+    /// <returns></returns>
+    /// <exception cref="Exception"></exception>
+    [TestMethod]
+    public async Task WebWorkerFileSystemSyncAccessHandleTest()
+    {
+        if (!WebWorkerService.WebWorkerSupported)
+        {
+            throw new UnsupportedTestException("Worker not supported by browser.");
+        }
+        using var worker = await WebWorkerService.GetWebWorker();
+        // call method that throws a DivideByZeroException exception in the web worker context
+        // the exception will be caught by the worker and rethrown to the caller
+        await worker!.Run(() => _WebWorkerFileSystemSyncAccessHandleTest(null!));
+    }
+    static async Task _WebWorkerFileSystemSyncAccessHandleTest([FromServices] BlazorJSRuntime JS)
+    {
+        var testFileName = "test.txt";
+        using var navigator = JS.Get<Navigator>("navigator");
+        using var dir = await navigator.Storage.GetDirectory();
+        try
+        {
+            await dir.RemoveEntry(testFileName);
+        }
+        catch { }
+        using var file = await dir.GetFileHandle(testFileName, true);
+        using var fileS = await file.CreateSyncAccessHandle(new FileSystemSyncAccessOptions { Mode = "readwrite-unsafe" });
+        try
+        {
+            var txt = "Hello world!";
+            var txtBytes = Encoding.UTF8.GetBytes(txt);
+            var bytesWritten = fileS.Write(txtBytes);
+            if (txtBytes.Length != bytesWritten)
+            {
+                throw new Exception($"Incorrect bytesWritten value. {bytesWritten} != {txtBytes.Length}");
+            }
+            fileS.Flush();
+            var fileSize = fileS.GetSize();
+            if (txtBytes.Length != fileSize)
+            {
+                throw new Exception($"Incorrect file size. {fileSize} != {txtBytes.Length}");
+            }
+            var rbDest = new byte[64];
+            var bytesRead = fileS.Read(rbDest, new FileSystemSyncReadWriteOptions { At = 0 });
+            JS.Log($"bytesRead: {bytesRead} {txtBytes.Length}");
+            var readBackTxt = Encoding.UTF8.GetString(rbDest, 0, (int)bytesRead);
+            if (readBackTxt != txt)
+            {
+                throw new Exception($"Readback failed: {bytesRead} bytes '{readBackTxt}' != '{txt}'");
+            }
+        }
+        finally
+        {
+            try
+            {
+                fileS.Close();
+                await dir.RemoveEntry(testFileName);
+            }
+            catch { }
+        }
+    }
+
+    [TestMethod]
+    public async Task WebWorkerAppSettingsReadTest()
+    {
+        if (!WebWorkerService.WebWorkerSupported)
+        {
+            throw new UnsupportedTestException("Worker not supported by browser.");
+        }
+        // test key to read from appsettings.json
+        var testKey = "Message";
+        // get value loaded in this context to compare to worker returned value
+        var testValueWindow = await MathService.ReadAppSettingsValue(testKey);
+        // get worker and read the value from that context
+        using var worker = await WebWorkerService.GetWebWorker();
+        var mathService = worker!.GetService<IMathsService>();
+        var testValueWorker = await mathService.ReadAppSettingsValue(testKey);
+        // compare
+        if (testValueWorker != testValueWindow) throw new Exception("Unexpected result");
+        Console.WriteLine($"WebWorkerAppSettingsReadTest value: {testValueWorker}");
+    }
+
+    [TestMethod]
+    public async Task WebWorkerTestMultiSigMethods()
+    {
+        if (!WebWorkerService.WebWorkerSupported)
+        {
+            throw new UnsupportedTestException("Worker not supported by browser.");
+        }
+        using var worker = await WebWorkerService.GetWebWorker();
+        var mathService = worker!.GetService<IMathsService>();
+        var strValueOrig = "apples";
+        var dblValueOrig = Math.PI;
+
+        // test call IMathsService.TestMultiSigMethod which has 3 signatures total.
+
+        // this call is intended for the only method with this name and 2 arguments.
+        var twoArgReadBack = await mathService.TestMultiSigMethod(strValueOrig, dblValueOrig);
+        var twoArgReadBackExpected = strValueOrig + " " + dblValueOrig;
+        if (twoArgReadBack != twoArgReadBackExpected) throw new Exception("Call to worker TestMultiSigMethod with unique number of arguments failed");
+
+        // test call IMathsService.TestMultiSigMethod which has two signatures with the same number of arguments
+
+        // this call intended for the one with a string argument.
+        var strValueReadBack = await mathService.TestMultiSigMethod(strValueOrig);
+        if (strValueOrig != strValueReadBack) throw new Exception("Call to worker TestMultiSigMethod with 1 argument failed with string");
+
+        // this call intended for the one with a double argument.
+        var dblValueReadBack = await mathService.TestMultiSigMethod(dblValueOrig);
+        if (dblValueOrig != dblValueReadBack) throw new Exception("Call to worker TestMultiSigMethod with 1 argument failed with double");
+    }
+
+    [TestMethod]
+    public async Task WebWorkerGenericsTest()
+    {
+        if (!WebWorkerService.WebWorkerSupported)
+        {
+            throw new UnsupportedTestException("Worker not supported by browser.");
+        }
+        using var worker = await WebWorkerService.GetWebWorker();
+        var mathService = worker!.GetService<IMathsService>();
+        var value1 = "apples";
+        var value2 = 42;
+        var value2ReadBack = await mathService.TestGenerics<string, int>(value1, value2);
+        if (value2ReadBack != value2) throw new Exception("Unexpected result");
+    }
+
+    [TestMethod]
+    public async Task WebWorkerTest()
+    {
+        if (!WebWorkerService.WebWorkerSupported)
+        {
+            throw new UnsupportedTestException("Worker not supported by browser.");
+        }
+        using var worker = await WebWorkerService.GetWebWorker();
+        var mathService = worker!.GetService<IMathsService>();
+        var randValue = Guid.NewGuid().ToString();
+        await mathService.SetValueTest(randValue);
+        var readBack = await mathService.GetValueTest();
+        if (readBack != randValue) throw new Exception("Unexpected result");
+    }
+
+    [TestMethod]
+    public async Task WebWorkersTest()
+    {
+        if (!WebWorkerService.WebWorkerSupported)
+        {
+            throw new UnsupportedTestException("Worker not supported by browser.");
+        }
+        using var workerA = await WebWorkerService.GetWebWorker();
+        using var workerB = await WebWorkerService.GetWebWorker();
+        var mathServiceA = workerA!.GetService<IMathsService>();
+        var mathServiceB = workerB!.GetService<IMathsService>();
+        var randValue = Guid.NewGuid().ToString();
+        await mathServiceA.SetValueTest(randValue);
+        var readBack = await mathServiceB.GetValueTest();
+        if (readBack == randValue) throw new Exception("Unexpected result");
+    }
+
+    [TestMethod]
+    public async Task SharedWebWorkerTest()
+    {
+        if (!WebWorkerService.SharedWebWorkerSupported)
+        {
+            throw new UnsupportedTestException("SharedWorker not supported by browser.");
+        }
+
+        var thisInstanceId = JS.InstanceId;
+
+        using var worker = await WebWorkerService.GetSharedWebWorker();
+
+        var workerInstanceId = await worker!.Run(() => JS.InstanceId);
+        Console.WriteLine($"thisInstanceId: {thisInstanceId}");
+        Console.WriteLine($"workerInstanceId: {workerInstanceId}");
+
+
+        var mathService = worker.GetService<IMathsService>();
+        var randValue = Guid.NewGuid().ToString();
+        await mathService.SetValueTest(randValue);
+        var readBack = await mathService.GetValueTest();
+        Console.WriteLine($"SharedWebWorkerTest: {readBack}");
+        if (readBack != randValue) throw new Exception("Unexpected result");
+    }
+
+    [TestMethod]
+    public async Task SharedWebWorkersByName()
+    {
+        if (!WebWorkerService.SharedWebWorkerSupported)
+        {
+            throw new UnsupportedTestException("SharedWorker not supported by browser.");
+        }
+        // workerA1 and workerA2 will refer to the same shared worker
+        // workerB is a separate worker instance
+        using var workerA1 = await WebWorkerService.GetSharedWebWorker("workerA");
+        using var workerA2 = await WebWorkerService.GetSharedWebWorker("workerA");
+        using var workerB = await WebWorkerService.GetSharedWebWorker("workerB");
+        var mathServiceA1 = workerA1!.GetService<IMathsService>();
+        var mathServiceA2 = workerA2!.GetService<IMathsService>();
+        var mathServiceB = workerB!.GetService<IMathsService>();
+        var valueSetWorkerA1 = Guid.NewGuid().ToString();
+        await mathServiceA1.SetValueTest(valueSetWorkerA1);
+        var valueGetWorkerB = await mathServiceB.GetValueTest();
+        var valueGetWorkerA1 = await mathServiceA1.GetValueTest();
+        var valueGetWorkerA2 = await mathServiceA2.GetValueTest();
+        if (valueGetWorkerA1 != valueSetWorkerA1) throw new Exception("Unexpected result");
+        if (valueGetWorkerA2 != valueSetWorkerA1) throw new Exception("SharedWorker appears not shared");
+        if (valueGetWorkerB == valueSetWorkerA1) throw new Exception("SharedWorker with different name unexpectedly same as first SharedWorker");
+    }
+    #endregion
+
+    #region WorkerPool Worker Disposal Test
+
+    [TestMethod]
+    public async Task WebWorkerTaskPoolWorkerDisposalTest()
+    {
+        if (!WebWorkerService.WebWorkerSupported)
+        {
+            throw new UnsupportedTestException("Worker not supported by browser.");
+        }
+        // Cancel the task after 2 seconds
+        var worker = await WebWorkerService.TaskPool.GetWorkerAsync();
+        Console.WriteLine($"WebWorkerService.TaskPool count/max before disposal: {WebWorkerService.TaskPool.WorkersRunning} / {WebWorkerService.TaskPool.MaxPoolSize}");
+        worker.Dispose();
+        Console.WriteLine($"WebWorkerService.TaskPool count immediately after disposal: {WebWorkerService.TaskPool.WorkersRunning}");
+        var worker2 = await WebWorkerService.TaskPool.GetWorkerAsync();
+        //await Task.Delay(2000);
+        Console.WriteLine($"WebWorkerService.TaskPool count after disposal and await : {WebWorkerService.TaskPool.WorkersRunning}");
+        worker2.ReleaseLock();
+
+        await Task.Delay(2000);
+        Console.WriteLine($"WebWorkerService.TaskPool count after disposal and await (b) : {WebWorkerService.TaskPool.WorkersRunning}");
+    }
+    #endregion
+
+    #region SharedCancellationTokenSource and Workers
+
+    [TestMethod]
+    public async Task WebWorkerSharedCancellationTokenSourceTest()
+    {
+        if (!WebWorkerService.WebWorkerSupported)
+        {
+            throw new UnsupportedTestException("Worker not supported by browser.");
+        }
+        if (JS.CrossOriginIsolated == false)
+        {
+            throw new UnsupportedTestException("Not CrossOriginIsolated.");
+        }
+        if (!SharedArrayBuffer.Supported)
+        {
+            throw new UnsupportedTestException("SharedArrayBuffer not supported by browser.");
+        }
+        var retd = -2;
+        var loops = 0;
+        using (var cts = new SharedCancellationTokenSource())
+        {
+            var token = cts.Token;
+            var runningTask = WebWorkerService.TaskPool.Run(() => AssembleSyncXXX(token));
+            while (true)
+            {
+                ++loops;
+                try
+                {
+                    retd = await runningTask.WaitAsync(TimeSpan.FromMilliseconds(10));
+                    break;
+                }
+                catch (TimeoutException) { }
+                cts.Cancel();
+            }
+        }
+        Console.WriteLine($"main retd: {retd}, loops: {loops}");
+    }
+    static int AssembleSyncXXX(SharedCancellationToken token)
+    {
+        for (var i = 0; i < 100000000; i++)
+        {
+            if (token.IsCancellationRequested) return i;
+        }
+        return -42;
+    }
+
+    [TestMethod]
+    public async Task WebWorkerSharedCancellationTokenTest()
+    {
+        if (!WebWorkerService.WebWorkerSupported)
+        {
+            throw new UnsupportedTestException("Worker not supported by browser.");
+        }
+        if (JS.CrossOriginIsolated == false)
+        {
+            throw new UnsupportedTestException("Not CrossOriginIsolated.");
+        }
+        if (!SharedArrayBuffer.Supported)
+        {
+            throw new UnsupportedTestException("SharedArrayBuffer not supported by browser.");
+        }
+        // Cancel the task after 2 seconds
+        using var cts = new SharedCancellationTokenSource(2000);
+        var i = await WebWorkerService.TaskPool.Run(() => CancellableMethod(10000, cts.Token));
+        if (i == -1) throw new Exception("Task Cancellation failed");
+    }
+
+    // Returns -1 if not cancelled
+    // This method will run for 10 seconds if not cancelled
+    private static long CancellableMethod(double maxRunTimeMS, SharedCancellationToken token)
+    {
+        Console.WriteLine(">> CancellableMethod");
+        var startTime = DateTime.Now;
+        var maxRunTime = TimeSpan.FromMilliseconds(maxRunTimeMS);
+        long i = 0;
+        while (DateTime.Now - startTime < maxRunTime)
+        {
+            // do some work ...
+            i += 1;
+            // check if cancelled message received
+            Console.WriteLine("?");
+            if (token.IsCancellationRequested) return i;
+        }
+        Console.WriteLine("<< CancellableMethod");
+        return -1;
+    }
+    #endregion
+
+    #region Atomics and Workers
+    [TestMethod]
+    public async Task AtomicsTest()
+    {
+        if (JS.CrossOriginIsolated == false)
+        {
+            throw new UnsupportedTestException("Not CrossOriginIsolated.");
+        }
+        if (!SharedArrayBuffer.Supported)
+        {
+            throw new UnsupportedTestException("SharedArrayBuffer not supported by browser.");
+        }
+        var values = new int[] { 0, 1, 2, 3, 55, 5, 6, 7 };
+        JS.Set("values", values);
+        using var sharedArrayBuffer = new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT * values.Length);
+        using var typedArray = new Int32Array(sharedArrayBuffer);
+        typedArray.Set(new byte[] { 1, 2, 3, 55, 5, 6, 7 }, 1);
+        JS.Set("typedArray", typedArray);
+        JS.Log("typedArray", typedArray);
+        var oldValue = Atomics.Add(typedArray, 1, 42);
+        Console.WriteLine($"oldValue: {oldValue}");
+        if (oldValue != values[1]) throw new Exception("Match Failed 1");
+        var curValue = Atomics.Load(typedArray, 1);
+        Console.WriteLine($"curValue: {curValue}");
+        if (curValue != 43) throw new Exception("Match Failed 2");
+        var ret = await WebWorkerService.TaskPool.Run(() => WebWorkerAtomicsTest(values, sharedArrayBuffer, 6));
+        if (ret != typedArray[6]) throw new Exception("Match Failed 3");
+    }
+    static int WebWorkerAtomicsTest(int[] values, SharedArrayBuffer sharedArrayBuffer, long index)
+    {
+        using var typedArray = new Int32Array(sharedArrayBuffer);
+        Console.WriteLine($"worker exchanging [{index}] with 1");
+        var oldValue = Atomics.Exchange(typedArray, index, 1);
+        Console.WriteLine($"worker oldValue 6a: {oldValue}");
+        oldValue = Atomics.Add(typedArray, index, 42);
+        Console.WriteLine($"worker oldValue a2: {oldValue}");
+        if (oldValue != values[1]) throw new Exception("Match Failed 1");
+        var curValue = Atomics.Load(typedArray, index);
+        Console.WriteLine($"curValue: {curValue}");
+        if (curValue != 43) throw new Exception("Match Failed 2");
+        return curValue;
+    }
+    [TestMethod]
+    public async Task AtomicsSharedArrayBufferBigInt64ArrayTest()
+    {
+        if (!SharedArrayBuffer.Supported)
+        {
+            throw new UnsupportedTestException("SharedArrayBuffer not supported by browser.");
+        }
+        if (!BigInt64Array.Supported)
+        {
+            throw new UnsupportedTestException("BigInt64Array not supported by browser.");
+        }
+        var bigValue = long.MaxValue - 100;
+        var values = new long[] { 0, 1, 2, 3, 55, 5, 6, 7 };
+        JS.Set("values", values);
+        using var sharedArrayBuffer = new SharedArrayBuffer(BigInt64Array.BYTES_PER_ELEMENT * values.Length);
+        using var typedArray = new BigInt64Array(sharedArrayBuffer);
+        typedArray.Set(values);
+        JS.Set("typedArray", typedArray);
+        JS.Log("typedArray", typedArray);
+        Atomics.Exchange(typedArray, 1, bigValue);
+        if (typedArray[1] != bigValue) throw new Exception("Match Failed 1");
+        Atomics.Exchange(typedArray, 1, values[1]);
+        var oldValue = Atomics.Add(typedArray, 1, 42);
+        Console.WriteLine($"oldValue: {oldValue}");
+        if (oldValue != values[1]) throw new Exception("Match Failed 1a");
+        var curValue = Atomics.Load(typedArray, 1);
+        Console.WriteLine($"curValue: {curValue}");
+        if (curValue != 43) throw new Exception("Match Failed 2");
+        var ret = await WebWorkerService.TaskPool.Run(() => WebWorkerAtomicsSharedArrayBufferBigInt64ArrayTest(values, sharedArrayBuffer, 6));
+        if (ret != typedArray[6]) throw new Exception("Match Failed 3");
+    }
+    static long WebWorkerAtomicsSharedArrayBufferBigInt64ArrayTest(long[] values, SharedArrayBuffer sharedArrayBuffer, long index)
+    {
+        using var typedArray = new BigInt64Array(sharedArrayBuffer);
+        Console.WriteLine($"worker exchanging [{index}] with 1");
+        var oldValue = Atomics.Exchange(typedArray, index, 1);
+        Console.WriteLine($"worker oldValue 6a: {oldValue}");
+        oldValue = Atomics.Add(typedArray, index, 42);
+        Console.WriteLine($"worker oldValue a2: {oldValue}");
+        if (oldValue != values[1]) throw new Exception("Match Failed 1");
+        var curValue = Atomics.Load(typedArray, index);
+        Console.WriteLine($"curValue: {curValue}");
+        if (curValue != 43) throw new Exception("Match Failed 2");
+        return curValue;
+    }
+    #endregion
+    
+    #region AbortSignal and Workers
     [TestMethod]
     public async Task AbortSignalTest()
     {
         if (JS.IsUndefined("AbortSignal"))
         {
-            throw new Exception("AbortSignal not supported by browser. Expected failure.");
+            throw new UnsupportedTestException("AbortSignal not supported by browser.");
         }
         if (JS.IsUndefined("AbortSignal.timeout"))
         {
-            throw new Exception("AbortSignal.timeout not supported by browser. Expected failure.");
+            throw new UnsupportedTestException("AbortSignal.timeout not supported by browser.");
         }
         //var worker = await WebWorkerService.TaskPool.GetWorkerAsync();
         var signal = AbortSignal.Timeout(1000);
@@ -1477,13 +1430,72 @@
         }
         return -1;
     }
+    #endregion
+
+    #region Locks and Workers
+    [TestMethod]
+    public async Task LockManagerTest()
+    {
+        if (WebWorkerService.Locks == null)
+        {
+            throw new UnsupportedTestException("Locks not supported by browser.");
+        }
+        JS.Log("requesting lock");
+        await WebWorkerService.Locks.Request("my_lock", async (lockInfo) =>
+        {
+            // because this is an exclusive lock,
+            // the code in this callback will never run in more than 1 thread at a time.
+            JS.Log("have lock", lockInfo);
+            // simulating async work like synchronizing a browser db to the server
+            await Task.Delay(1000);
+            // the lock is not released until this async method exits
+            JS.Log("releasing lock");
+        });
+        JS.Log("released lock");
+    }
+    [TestMethod]
+    public async Task LockManagerRequestHandleTest()
+    {
+        if (WebWorkerService.Locks == null)
+        {
+            throw new UnsupportedTestException("Locks not supported by browser.");
+        }
+        JS.Log("requesting lock");
+        TaskCompletionSource tcs = await WebWorkerService.Locks.RequestHandle("my_lock");
+        // because this is an exclusive lock,
+        // the code in this callback will never run in more than 1 thread at a time.
+        JS.Log("have lock");
+        // simulating async work like synchronizing a browser db to the server
+        await Task.Delay(1000);
+        // the lock is not released until this async method exits
+        JS.Log("releasing lock");
+        tcs.SetResult();
+        JS.Log("released lock");
+    }
+    [TestMethod]
+    public async Task LockManagerReturnValueTest()
+    {
+        if (WebWorkerService.Locks == null)
+        {
+            throw new UnsupportedTestException("Locks not supported by browser.");
+        }
+        using var navigator = JS.Get<Navigator>("navigator");
+        using var locks = navigator.Locks;
+        var randId = Guid.NewGuid().ToString();
+        Console.WriteLine("requesting lock");
+        var clientId2 = await locks.Request(randId, (l) =>
+        {
+            return "apples!!!!~";
+        });
+        Console.WriteLine($"released lock: {clientId2}");
+    }
 
     [TestMethod]
     public async Task LockManagerExclusiveLockTimeoutTest()
     {
         if (WebWorkerService.Locks == null)
         {
-            throw new Exception("Locks not supported by browser. Expected failure.");
+            throw new UnsupportedTestException("Locks not supported by browser.");
         }
         using var navigator = JS.Get<Navigator>("navigator");
         using var locks = navigator.Locks;
@@ -1511,7 +1523,7 @@
     {
         if (WebWorkerService.Locks == null)
         {
-            throw new Exception("Locks not supported by browser. Expected failure.");
+            throw new UnsupportedTestException("Locks not supported by browser.");
         }
         using var navigator = JS.Get<Navigator>("navigator");
         using var locks = navigator.Locks;
@@ -1526,7 +1538,6 @@
         await Task.Delay(10);
         JS.Log("locks", await locks.Query());
     }
-
 
     private static long WebWorkerLockManagerTest(AbortSignal abortSignal)
     {
@@ -1543,6 +1554,9 @@
         return -1;
     }
 
+    #endregion
+
+    #region Type serialization and Workers
     [TestMethod]
     public async Task TypeSerializationTest()
     {
@@ -1556,9 +1570,9 @@
         Console.WriteLine($"Type recvd: {type.FullName}");
         return type;
     }
+   #endregion
 
-
-    #region Transfer required tests - tests what Transferable objects require transfer to be used in workers (Note: detached == neutered)
+    #region Transferable and Workers - tests what Transferable objects require transfer to be used in workers (Note: detached == neutered)
     /// <summary>
     /// Uses the `structuredClone()` method to determine if a transferable object is `neutered`, as in the ownership of the object has been transferred.<br/>
     /// If not already `neutered` this method will cause it to become `neutered`.
@@ -1612,7 +1626,7 @@
                 transferableObject = workerGlobalScope.StructuredClone<T>(transferableObject);
                 return false;
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 // clone failed, transfer is required
                 Console.WriteLine($"Clone failed {typeof(T).Name}: {ex.Message}");
@@ -1867,7 +1881,7 @@
             var midiAccess = await navigator.RequestMIDIAccess();
             if (midiAccess == null) throw new Exception($"{nameof(MIDIAccess)} error: Could not acquire new instance");
             // 2. test if transfer is allowed using structuredClone
-            var structuredCloneIsTransferable =transferRequired || StructuredIsTransferableCheck(midiAccess);
+            var structuredCloneIsTransferable = transferRequired || StructuredIsTransferableCheck(midiAccess);
             if (isTransferable != structuredCloneIsTransferable)
             {
                 if (structuredCloneIsTransferable)
@@ -1921,7 +1935,7 @@
             using var stream = await navigator.MediaDevices.GetUserMedia(new MediaStreamConstraints { Audio = true, Video = true });
             var mediaStreamTrack = stream!.GetTracks().First();
             // 2. test if transfer is allowed using structuredClone
-            var structuredCloneIsTransferable = transferRequired ||  StructuredIsTransferableCheck(mediaStreamTrack);
+            var structuredCloneIsTransferable = transferRequired || StructuredIsTransferableCheck(mediaStreamTrack);
             if (isTransferable != structuredCloneIsTransferable)
             {
                 if (structuredCloneIsTransferable)
@@ -2476,7 +2490,7 @@
     }
     #endregion
 
-    #region WorkerTransfer Tests
+    #region WorkerTransfer and Workers
     [TestMethod]
     public async Task WorkerTransferTest1()
     {
@@ -2738,4 +2752,5 @@
         public OffscreenCanvas[] OffscreenCanvasArray { get; set; }
     }
     #endregion
+
 }

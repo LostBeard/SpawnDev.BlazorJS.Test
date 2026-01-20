@@ -34,13 +34,13 @@ namespace SpawnDev.BlazorJS.Test.UnitTests
             using var fruitFileStream = await fruitFile.CreateWritable();
             await fruitFileStream.Truncate(0);
             await fruitFileStream.Write("Hello apples!");
-            fruitFileStream.Close();
+            await fruitFileStream.Close();
             // vegFile
             using var vegFile = await storageDir.GetFileHandle("vegetable.txt", true);
             using var vegFileStream = await vegFile.CreateWritable();
             await vegFileStream.Truncate(0);
             await vegFileStream.Write("Hello carrots!");
-            vegFileStream.Close();
+            await vegFileStream.Close();
             // list dir contents
             JS.Set("_storageDir", storageDir);
             var entries = await storageDir.ValuesList();
