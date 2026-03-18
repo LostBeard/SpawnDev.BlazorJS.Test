@@ -1,6 +1,7 @@
 ﻿using Microsoft.JSInterop;
-using SpawnDev.Blazor.UnitTesting;
 using SpawnDev.BlazorJS.JSObjects;
+using SpawnDev.BlazorJS.Toolbox;
+using SpawnDev.UnitTesting;
 using File = SpawnDev.BlazorJS.JSObjects.File;
 
 namespace SpawnDev.BlazorJS.Test.UnitTests

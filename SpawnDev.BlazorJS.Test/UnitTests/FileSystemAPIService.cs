@@ -1,5 +1,5 @@
-﻿using SpawnDev.Blazor.UnitTesting;
-using SpawnDev.BlazorJS.JSObjects;
+﻿using SpawnDev.BlazorJS.JSObjects;
+using SpawnDev.UnitTesting;
 
 namespace SpawnDev.BlazorJS.Test.UnitTests
 {

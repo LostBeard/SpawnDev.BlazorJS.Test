@@ -151,12 +151,12 @@ gl_FragColor = texture2D(u_image, v_texCoord);
         var texture = gl.CreateTexture();
         // Bind the texture to TEXTURE_2D so we can set parameters and image data.
         //gl.ActiveTexture(gl.TEXTURE0); // this is not needed here, but can be used if you want to use multiple textures.
-        gl.BindTexture(gl.TEXTURE_2D, texture);
+        gl.BindTexture(GL.TEXTURE_2D, texture);
         // Set the parameters so we can render any size image.
-        gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-        gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.TexParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_S, GL.CLAMP_TO_EDGE);
+        gl.TexParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_T, GL.CLAMP_TO_EDGE);
+        gl.TexParameteri(GL.TEXTURE_2D, GL.TEXTURE_MIN_FILTER, GL.NEAREST);
+        gl.TexParameteri(GL.TEXTURE_2D, GL.TEXTURE_MAG_FILTER, GL.NEAREST);
         return texture;
     }
     void SetRectangle(float x, float y, float width, float height)
@@ -166,16 +166,16 @@ gl_FragColor = texture2D(u_image, v_texCoord);
         var y1 = y;
         var y2 = y + height;
         using var bufferData = new Float32Array([x1, y1, x2, y1, x1, y2, x1, y2, x2, y1, x2, y2]);
-        gl.BufferData(gl.ARRAY_BUFFER, bufferData, gl.STATIC_DRAW);
+        gl.BufferData(GL.ARRAY_BUFFER, bufferData, GL.STATIC_DRAW);
     }
     WebGLBuffer? positionBuffer = null;
     WebGLBuffer? texcoordBuffer = null;
     WebGLTexture? texture = null;
-    int positionLocation = 0;
-    int texcoordLocation = 0;
+    uint positionLocation = 0;
+    uint texcoordLocation = 0;
     void UpdateTexture(Uint8Array rgbaPixels, int width, int height)
     {
-        gl!.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, rgbaPixels);
+        gl!.TexImage2D(GL.TEXTURE_2D, 0, GL.RGBA, width, height, 0, GL.RGBA, GL.UNSIGNED_BYTE, rgbaPixels);
     }
     void InitWebGL(int outWidth, int outHeight)
     {
@@ -194,8 +194,8 @@ gl_FragColor = texture2D(u_image, v_texCoord);
         p = gl.CreateProgram(vertexShader, pixelShader);
 
         // look up where the vertex data needs to go.
-        positionLocation = gl.GetAttribLocation(p, "a_position");
-        texcoordLocation = gl.GetAttribLocation(p, "a_texCoord");
+        positionLocation = (uint)gl.GetAttribLocation(p, "a_position");
+        texcoordLocation = (uint)gl.GetAttribLocation(p, "a_texCoord");
 
         // lookup uniforms
         //var resolutionLocation = gl.GetUniformLocation(p, "u_resolution");
@@ -204,31 +204,31 @@ gl_FragColor = texture2D(u_image, v_texCoord);
         positionBuffer = gl.CreateBuffer();
 
         // Bind it to ARRAY_BUFFER (think of it as ARRAY_BUFFER = positionBuffer)
-        gl.BindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+        gl.BindBuffer(GL.ARRAY_BUFFER, positionBuffer);
         // Set current ARRAY_BUFFER data (currently positionBuffer)
         SetRectangle(0, 0, outWidth, outHeight);
 
         // provide texture coordinates for the rectangle.
         texcoordBuffer = gl.CreateBuffer();
-        gl.BindBuffer(gl.ARRAY_BUFFER, texcoordBuffer);
-        gl.BufferData(gl.ARRAY_BUFFER, new Float32Array(new float[] {
+        gl.BindBuffer(GL.ARRAY_BUFFER, texcoordBuffer);
+        gl.BufferData(GL.ARRAY_BUFFER, new Float32Array(new float[] {
             0.0f, 0.0f,
             1.0f, 0.0f,
             0.0f, 1.0f,
             0.0f, 1.0f,
             1.0f, 0.0f,
             1.0f, 1.0f,
-    }), gl.STATIC_DRAW);
+    }), GL.STATIC_DRAW);
 
         // Create a texture.
         texture = gl.CreateTexture();
-        gl.BindTexture(gl.TEXTURE_2D, texture);
+        gl.BindTexture(GL.TEXTURE_2D, texture);
 
         // Set the parameters so we can render any size image.
-        gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-        gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.TexParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_S, GL.CLAMP_TO_EDGE);
+        gl.TexParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_T, GL.CLAMP_TO_EDGE);
+        gl.TexParameteri(GL.TEXTURE_2D, GL.TEXTURE_MIN_FILTER, GL.NEAREST);
+        gl.TexParameteri(GL.TEXTURE_2D, GL.TEXTURE_MAG_FILTER, GL.NEAREST);
 
         // // Upload the image into the texture.
         // gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, Image);
@@ -251,7 +251,7 @@ gl_FragColor = texture2D(u_image, v_texCoord);
 
         // Clear the canvas
         gl.ClearColor(0, 0, 0, 0);
-        gl.Clear(gl.COLOR_BUFFER_BIT);
+        gl.Clear(GL.COLOR_BUFFER_BIT);
 
         // Tell it to use our program (pair of shaders)
         gl.UseProgram(p);
@@ -262,20 +262,20 @@ gl_FragColor = texture2D(u_image, v_texCoord);
         // set the pixel shader sampler uniform to texture unit 0
         var texUnit = 0; 
         // set active texture unit to 0
-        gl.ActiveTexture(gl.TEXTURE0 + texUnit);
+        gl.ActiveTexture(GL.TEXTURE0 + (uint)texUnit);
         // bind the texture to texture unit 0 (active texture unit)
-        gl.BindTexture(gl.TEXTURE_2D, texture);
+        gl.BindTexture(GL.TEXTURE_2D, texture);
         // set the u_image uniform to texture unit 0
         Uniform1i("u_image", texUnit);
 
         {
             // Bind the position buffer.
-            gl.BindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+            gl.BindBuffer(GL.ARRAY_BUFFER, positionBuffer);
             // Turn on the position attribute
             gl.EnableVertexAttribArray(positionLocation);
             // Tell the position attribute how to get data out of positionBuffer (ARRAY_BUFFER)
             var size = 2;          // 2 components per iteration
-            var type = gl.FLOAT;   // the data is 32bit floats
+            var type = GL.FLOAT;   // the data is 32bit floats
             var normalize = false; // don't normalize the data
             var stride = 0;        // 0 = move forward size * sizeof(type) each iteration to get the next position
             var offset = 0;        // start at the beginning of the buffer
@@ -284,12 +284,12 @@ gl_FragColor = texture2D(u_image, v_texCoord);
 
         {
             // bind the texcoord buffer.
-            gl.BindBuffer(gl.ARRAY_BUFFER, texcoordBuffer);
+            gl.BindBuffer(GL.ARRAY_BUFFER, texcoordBuffer);
             // Turn on the texcoord attribute
             gl.EnableVertexAttribArray(texcoordLocation);
             // Tell the texcoord attribute how to get data out of texcoordBuffer (ARRAY_BUFFER)
             var size = 2;          // 2 components per iteration
-            var type = gl.FLOAT;   // the data is 32bit floats
+            var type = GL.FLOAT;   // the data is 32bit floats
             var normalize = false; // don't normalize the data
             var stride = 0;        // 0 = move forward size * sizeof(type) each iteration to get the next position
             var offset = 0;        // start at the beginning of the buffer
@@ -298,7 +298,7 @@ gl_FragColor = texture2D(u_image, v_texCoord);
 
         {         
             // Draw the rectangle.
-            var primitiveType = gl.TRIANGLES;
+            var primitiveType = GL.TRIANGLES;
             var offset = 0;
             var count = 6;
             gl.DrawArrays(primitiveType, offset, count);
